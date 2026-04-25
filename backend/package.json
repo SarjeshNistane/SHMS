@@ -1,0 +1,21 @@
+{
+  "name": "ai-smart-hospital-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/scripts/seedDemoData.js",
+    "demo:instant": "node src/scripts/runInstantDemo.js",
+    "demo:backup": "node src/scripts/demoBackup.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.9.5",
+    "socket.io": "^4.8.1"
+  }
+}

@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Command Center - SHMS</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/animations.css">
+
+  <style>
+    .ai-insight-box { display: flex; flex-direction: column; gap: 1.5rem; }
+    .ai-insight-item { display: flex; gap: 1.25rem; align-items: flex-start; padding: 1.25rem; background: var(--gray-50); border-radius: 1.25rem; border: 1px solid var(--gray-100); }
+    .stat-value { font-size: 2.25rem !important; font-weight: 800; letter-spacing: -1px; }
+    .dashboard-card-title { font-size: 1.1rem; }
+    .ai-icon { width: 32px; height: 32px; border-radius: 8px; background: #fee2e2; color: #ef4444; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ai-icon.success { background: #dcfce7; color: #166534; }
+    .ai-icon.warning { background: #fef3c7; color: #92400e; }
+    .ai-text { font-size: 0.875rem; color: var(--gray-700); line-height: 1.5; }
+    
+    .emergency-trigger-card { padding: 2rem; border-radius: 1.5rem; text-align: center; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; background: white; }
+    .emergency-trigger-card i { width: 32px; height: 32px; margin-bottom: 0.75rem; }
+    .emergency-trigger-card.fire { color: #ef4444; border-color: #fee2e2; }
+    .emergency-trigger-card.medical { color: #f59e0b; border-color: #fef3c7; }
+    .emergency-trigger-card.code { color: #3b82f6; border-color: #dbeafe; }
+    .emergency-trigger-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+    
+    .header-status-badge { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #dcfce7; color: #166534; border-radius: 2rem; font-size: 0.75rem; font-weight: 700; }
+    .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+    .dashboard-section { display: none; animation: fadeIn 0.4s ease-out; }
+    .dashboard-section.active { display: block; }
+    
+    .bed-item span { font-size: 0.75rem; font-weight: 700; }
+
+    /* Modal Styles */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 2rem; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: 2rem; width: 100%; max-width: 550px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; animation: modalIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid var(--gray-100); }
+    .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; background: var(--gray-50); }
+    .modal-title { font-size: 1.25rem; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; gap: 0.75rem; }
+    .modal-close { background: white; border: 1px solid var(--gray-200); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: var(--gray-500); }
+    .modal-close:hover { background: var(--gray-50); color: var(--danger); border-color: var(--danger-light); }
+    .modal-body { padding: 2rem; }
+    .modal-footer { padding: 1.25rem 2rem; background: var(--gray-50); border-top: 1px solid var(--gray-100); display: flex; justify-content: flex-end; gap: 1rem; }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    
+    .detail-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px dashed var(--gray-200); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--gray-500); font-size: 0.875rem; font-weight: 500; }
+    .detail-value { color: var(--gray-900); font-weight: 700; font-size: 0.9375rem; }
+
+    .ai-log-entry { padding: 0.75rem; border-bottom: 1px solid var(--gray-50); font-size: 0.8125rem; display: flex; gap: 0.75rem; animation: slideInLeft 0.3s ease-out; }
+    .ai-log-entry i { color: var(--primary); flex-shrink: 0; margin-top: 2px; }
+    .ai-log-time { color: var(--gray-400); font-weight: 600; width: 45px; }
+    .ai-log-msg { color: var(--gray-700); line-height: 1.4; }
+    @keyframes slideInLeft { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+    .bed-item { cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .bed-item:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: var(--shadow-md); background: white; }
+    .bed-item.occupied:hover { border-color: var(--danger); }
+
+    /* AI Visualization */
+    .neural-container { background: #0f172a; padding: 1rem; border-radius: 1rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; height: 50px; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .neural-wave { position: absolute; top: 50%; left: -100%; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, #3b82f6, transparent); animation: neuralFlow 2s infinite linear; }
+    @keyframes neuralFlow { from { left: -100%; } to { left: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a href="index.html" class="sidebar-brand">
+          <div class="sidebar-brand-icon">
+            <i data-lucide="heart-pulse"></i>
+          </div>
+          SHMS
+        </a>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-title">Administration</div>
+        <ul class="sidebar-nav-list">
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link active" data-section="overview">
+              <span class="sidebar-nav-icon"><i data-lucide="layout-dashboard"></i></span>
+              Dashboard
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="patients">
+              <span class="sidebar-nav-icon"><i data-lucide="users"></i></span>
+              Patient Registry
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="beds">
+              <span class="sidebar-nav-icon"><i data-lucide="bed"></i></span>
+              Bed Allocation
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="doctors">
+              <span class="sidebar-nav-icon"><i data-lucide="stethoscope"></i></span>
+              Medical Staff
+            </a>
+          </li>
+        </ul>
+
+        <div class="sidebar-nav-title">Hospital Intelligence</div>
+        <ul class="sidebar-nav-list">
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="capacity">
+              <span class="sidebar-nav-icon"><i data-lucide="map"></i></span>
+              AI Capacity Map
+              <span class="sidebar-nav-badge" style="background: #6366f1;">LIVE</span>
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="inventory">
+              <span class="sidebar-nav-icon"><i data-lucide="package"></i></span>
+              AI Procurement
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="analytics">
+              <span class="sidebar-nav-icon"><i data-lucide="bar-chart-3"></i></span>
+              Financial Analytics
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="facility">
+              <span class="sidebar-nav-icon"><i data-lucide="building-2"></i></span>
+              Facility Control
+            </a>
+          </li>
+        </ul>
+        
+        <div class="sidebar-nav-title">Crisis Control</div>
+        <ul class="sidebar-nav-list">
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="emergency" style="color: #ef4444;">
+              <span class="sidebar-nav-icon"><i data-lucide="siren"></i></span>
+              Emergency Hub
+            </a>
+          </li>
+          <li class="sidebar-nav-item">
+            <a href="#" class="sidebar-nav-link" data-section="logs">
+              <span class="sidebar-nav-icon"><i data-lucide="file-code"></i></span>
+              System Audit
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-user-avatar">AD</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="adminName">Admin User</div>
+            <div class="sidebar-user-role">Super Admin</div>
+          </div>
+          <button class="sidebar-logout" onclick="logout()">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+    
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <header class="dashboard-header">
+        <div class="dashboard-header-left">
+          <button class="sidebar-toggle" id="sidebarToggle">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="breadcrumb">
+            <span class="text-muted">Pages</span> / <strong>Dashboard</strong>
+          </div>
+        </div>
+        
+        <div class="dashboard-header-right">
+          <div class="header-status-badge" style="background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid rgba(59, 130, 246, 0.2);">
+            <i data-lucide="brain" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+            AI Auto-Pilot: Active
+          </div>
+          <div class="header-status-badge">
+            <span class="pulse-dot success"></span>
+            System Live
+          </div>
+          <button class="header-icon-btn" onclick="initializeAdminDashboard()">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+          <button class="header-icon-btn">
+            <i data-lucide="bell"></i>
+            <span class="notification-dot"></span>
+          </button>
+          <div class="header-user">
+            <div class="header-user-avatar">AD</div>
+          </div>
+        </div>
+      </header>
+      
+      <div class="dashboard-content">
+        <!-- Overview Section -->
+        <section id="overviewSection" class="dashboard-section active">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+            <div>
+              <h1 class="dashboard-title">Hospital Command Center</h1>
+              <p class="dashboard-subtitle">Monitoring patient flow and resource utilization in real-time.</p>
+            </div>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-card animate-fade-in-up">
+              <div class="stat-icon primary"><i data-lucide="zap"></i></div>
+              <div class="stat-content">
+                <div class="stat-label">AI Efficiency Score</div>
+                <div class="stat-value" id="stat-occupancy">98.4%</div>
+                <div class="stat-change positive"><i data-lucide="trending-up"></i> +2.1% optimized</div>
+              </div>
+            </div>
+            <div class="stat-card animate-fade-in-up delay-100">
+              <div class="stat-icon success"><i data-lucide="bed"></i></div>
+              <div class="stat-content">
+                <div class="stat-label">Beds Available</div>
+                <div class="stat-value" id="stat-beds">--</div>
+                <div class="stat-change positive">Normal Capacity</div>
+              </div>
+            </div>
+            <div class="stat-card animate-fade-in-up delay-200">
+              <div class="stat-icon warning"><i data-lucide="clock"></i></div>
+              <div class="stat-content">
+                <div class="stat-label">Avg. Wait Time</div>
+                <div class="stat-value">14m</div>
+                <div class="stat-change negative"><i data-lucide="arrow-up"></i> 2m increase</div>
+              </div>
+            </div>
+            <div class="stat-card animate-fade-in-up delay-300">
+              <div class="stat-icon danger"><i data-lucide="siren"></i></div>
+              <div class="stat-content">
+                <div class="stat-label">Active Emergencies</div>
+                <div class="stat-value" id="stat-emergencies">0</div>
+                <div class="stat-change" id="emergency-status">All Clear</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="grid" style="grid-template-columns: 1fr 1.5fr; gap: 2rem; margin-top: 2rem;">
+            <!-- AI Decision Feed -->
+            <div class="dashboard-card animate-fade-in-up delay-400" style="display: flex; flex-direction: column;">
+              <div class="dashboard-card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--gray-100);">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="brain" style="width: 18px; height: 18px; color: white;"></i>
+                  </div>
+                  <div>
+                    <h3 class="dashboard-card-title" style="margin: 0;">Neural AI Log</h3>
+                    <div style="font-size: 0.72rem; color: var(--gray-400); font-weight: 600; margin-top: 1px;">Hospital Intelligence Stream</div>
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.4rem 0.85rem; border-radius: 2rem;">
+                  <span style="width: 7px; height: 7px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></span>
+                  <span style="font-size: 0.72rem; font-weight: 800; color: #065f46; letter-spacing: 0.04em;">LIVE</span>
+                </div>
+              </div>
+              <div id="ai-decision-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; max-height: 380px;">
+                <div style="text-align: center; padding: 2rem; color: var(--gray-400); font-size: 0.85rem;">Initializing AI Logic...</div>
+              </div>
+              <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--gray-100); background: var(--gray-50); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 1.5rem;">
+                  <div style="text-align: center;">
+                    <div style="font-size: 1rem; font-weight: 800; color: #ef4444;" id="ai-log-critical-count">0</div>
+                    <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 700; text-transform: uppercase;">Critical</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 1rem; font-weight: 800; color: #6366f1;" id="ai-log-action-count">0</div>
+                    <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 700; text-transform: uppercase;">Actions</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 1rem; font-weight: 800; color: #10b981;" id="ai-log-success-count">0</div>
+                    <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 700; text-transform: uppercase;">Optimized</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-ghost" style="font-size: 0.78rem;">View Full Log &rarr;</button>
+              </div>
+            </div>
+
+            <div class="dashboard-card animate-fade-in-up delay-400">
+              <div class="dashboard-card-header" style="display: flex; justify-content: space-between;">
+                <h3 class="dashboard-card-title"><i data-lucide="trending-up"></i> Performance & Finance</h3>
+                <div style="font-size: 0.85rem; color: var(--success); font-weight: 800;">+14% efficiency</div>
+              </div>
+               <div class="dashboard-card-body">
+                <div style="height: 280px;">
+                  <canvas id="performanceChart"></canvas>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-50);">
+                  <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--gray-400); text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em;">Revenue Target</div>
+                    <div style="font-size: 1.5rem; font-weight: 900; color: var(--primary); margin: 0.5rem 0;">₹82.4L / ₹100L</div>
+                    <div style="background: var(--gray-100); height: 8px; border-radius: 4px; margin-top: 0.75rem; overflow: hidden;">
+                      <div style="width: 82%; height: 100%; background: var(--primary); border-radius: 4px;"></div>
+                    </div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--gray-400); text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em;">Patient Satisfaction</div>
+                    <div style="font-size: 1.5rem; font-weight: 900; color: #10b981; margin: 0.5rem 0;">4.8 / 5.0</div>
+                    <div style="display: flex; justify-content: center; gap: 4px; margin-top: 0.75rem; color: #f59e0b;">
+                      <i data-lucide="star" style="width: 18px; height: 18px; fill: currentColor;"></i>
+                      <i data-lucide="star" style="width: 18px; height: 18px; fill: currentColor;"></i>
+                      <i data-lucide="star" style="width: 18px; height: 18px; fill: currentColor;"></i>
+                      <i data-lucide="star" style="width: 18px; height: 18px; fill: currentColor;"></i>
+                      <i data-lucide="star" style="width: 18px; height: 18px; fill: currentColor;"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Expanded Heatmap Row -->
+          <div class="dashboard-card animate-fade-in-up delay-500" style="margin-top: 2rem; cursor: pointer;" onclick="showSection('capacity')">
+            <div class="dashboard-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3 class="dashboard-card-title"><i data-lucide="map"></i> Neural Capacity Command Heatmap</h3>
+                <p style="font-size: 0.85rem; color: var(--gray-500); margin-top: 4px;">Real-time resource stress mapping across clinical departments.</p>
+              </div>
+              <div style="display: flex; gap: 1rem; align-items: center;">
+                <span class="badge badge-primary animate-pulse" style="font-size: 0.8rem; padding: 0.5rem 1rem;">LIVE AI STREAM</span>
+                <button class="btn btn-sm btn-ghost">View Deep Map &rarr;</button>
+              </div>
+            </div>
+            <div class="dashboard-card-body" style="padding: 2rem;">
+              <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 3rem;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;" id="overview-heatmap-grid">
+                   <div style="background: rgba(239, 68, 68, 0.05); border: 1.5px solid rgba(239, 68, 68, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #ef4444; font-weight: 800; letter-spacing: 0.05em;">ICU UNIT</span>
+                        <i data-lucide="trending-up" style="width: 14px; color: #ef4444;"></i>
+                      </div>
+                      <strong style="color: #ef4444; font-size: 2rem; font-weight: 900;" id="mini-icu-val">94%</strong>
+                      <div style="background: rgba(239, 68, 68, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 94%; height: 100%; background: #ef4444;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">Critical Load: 1 Bed Avail.</div>
+                   </div>
+                   <div style="background: rgba(245, 158, 11, 0.05); border: 1.5px solid rgba(245, 158, 11, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #f59e0b; font-weight: 800; letter-spacing: 0.05em;">ER DEPT</span>
+                        <i data-lucide="minus" style="width: 14px; color: #f59e0b;"></i>
+                      </div>
+                      <strong style="color: #f59e0b; font-size: 2rem; font-weight: 900;" id="mini-er-val">72%</strong>
+                      <div style="background: rgba(245, 158, 11, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 72%; height: 100%; background: #f59e0b;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">High Traffic: 12m Wait</div>
+                   </div>
+                   <div style="background: rgba(16, 185, 129, 0.05); border: 1.5px solid rgba(16, 185, 129, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #10b981; font-weight: 800; letter-spacing: 0.05em;">OPD CLINIC</span>
+                        <i data-lucide="trending-down" style="width: 14px; color: #10b981;"></i>
+                      </div>
+                      <strong style="color: #10b981; font-size: 2rem; font-weight: 900;" id="mini-opd-val">45%</strong>
+                      <div style="background: rgba(16, 185, 129, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 45%; height: 100%; background: #10b981;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">Optimal Flow: All Clear</div>
+                   </div>
+                   <div style="background: rgba(59, 130, 246, 0.05); border: 1.5px solid rgba(59, 130, 246, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #3b82f6; font-weight: 800; letter-spacing: 0.05em;">SURGICAL OT</span>
+                        <i data-lucide="trending-up" style="width: 14px; color: #3b82f6;"></i>
+                      </div>
+                      <strong style="color: #3b82f6; font-size: 2rem; font-weight: 900;" id="mini-surg-val">58%</strong>
+                      <div style="background: rgba(59, 130, 246, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 58%; height: 100%; background: #3b82f6;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">Active: 4/8 OTs Live</div>
+                   </div>
+                   <div style="background: rgba(16, 185, 129, 0.05); border: 1.5px solid rgba(16, 185, 129, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #10b981; font-weight: 800; letter-spacing: 0.05em;">DIAG LABS</span>
+                        <i data-lucide="minus" style="width: 14px; color: #10b981;"></i>
+                      </div>
+                      <strong style="color: #10b981; font-size: 2rem; font-weight: 900;" id="mini-lab-val">32%</strong>
+                      <div style="background: rgba(16, 185, 129, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 32%; height: 100%; background: #10b981;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">Processing: Avg 45m TAT</div>
+                   </div>
+                   <div style="background: rgba(245, 158, 11, 0.05); border: 1.5px solid rgba(245, 158, 11, 0.15); border-radius: 1.25rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem; color: #f59e0b; font-weight: 800; letter-spacing: 0.05em;">GEN WARD</span>
+                        <i data-lucide="trending-up" style="width: 14px; color: #f59e0b;"></i>
+                      </div>
+                      <strong style="color: #f59e0b; font-size: 2rem; font-weight: 900;" id="mini-gen-val">66%</strong>
+                      <div style="background: rgba(245, 158, 11, 0.2); height: 6px; border-radius: 3px; overflow: hidden;">
+                        <div style="width: 66%; height: 100%; background: #f59e0b;"></div>
+                      </div>
+                      <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 700;">Steady: 18 Beds Avail.</div>
+                   </div>
+                </div>
+
+                <!-- Mini Logistics Feed -->
+                <div style="background: var(--gray-50); border-radius: 1.5rem; padding: 1.5rem; border: 1px solid var(--gray-100);">
+                   <h4 style="font-size: 1rem; font-weight: 800; color: var(--gray-900); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                      <i data-lucide="zap" style="width: 16px; color: var(--primary);"></i> Intelligence Stream
+                   </h4>
+                   <div style="display: flex; flex-direction: column; gap: 1rem;">
+                      <div style="font-size: 0.85rem; padding: 0.75rem; background: white; border-radius: 12px; border: 1px solid var(--gray-200); border-left: 4px solid #ef4444;">
+                        <strong>17:12</strong> - ICU discharge bottleneck detected.
+                      </div>
+                      <div style="font-size: 0.85rem; padding: 0.75rem; background: white; border-radius: 12px; border: 1px solid var(--gray-200); border-left: 4px solid #f59e0b;">
+                        <strong>17:05</strong> - High Traffic in ER. Prep Ward B.
+                      </div>
+                      <div style="font-size: 0.85rem; padding: 0.75rem; background: white; border-radius: 12px; border: 1px solid var(--gray-200); border-left: 4px solid #3b82f6;">
+                        <strong>16:58</strong> - Rerouted 2 techs to Surgical Unit.
+                      </div>
+                      <div style="font-size: 0.85rem; color: var(--primary); text-align: center; font-weight: 700; margin-top: 0.5rem;">
+                        View Full Neural Log &rarr;
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Resources Section -->
+        <section id="bedsSection" class="dashboard-section">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+            <div>
+              <h1 class="dashboard-title">Bed Allocation Command</h1>
+              <p class="dashboard-subtitle">Monitoring real-time occupancy, unit capacity, and specialized bed utilization.</p>
+            </div>
+            <div style="display: flex; gap: 1.5rem; background: white; padding: 0.75rem 1.5rem; border-radius: 1rem; border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm);">
+              <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--gray-600);">
+                <div style="width: 12px; height: 12px; background: #10b981; border-radius: 3px;"></div> Vacant
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--gray-600);">
+                <div style="width: 12px; height: 12px; background: #3b82f6; border-radius: 3px;"></div> Occupied
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; color: var(--gray-600);">
+                <div style="width: 12px; height: 12px; background: #ef4444; border-radius: 3px;"></div> ICU/Critical
+              </div>
+            </div>
+          </div>
+          
+          <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+            <div class="dashboard-card">
+              <div class="dashboard-card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-100); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; width: 100%;">
+                   <h3 class="dashboard-card-title"><i data-lucide="layout"></i> General Ward</h3>
+                   <span class="badge badge-success" id="badge-wardA">--</span>
+                </div>
+                <div style="display: flex; gap: 1rem; width: 100%; margin-top: 0.5rem;">
+                   <div style="flex: 1; text-align: center; background: rgba(16, 185, 129, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #10b981; font-weight: 800; text-transform: uppercase;">Vacant</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #10b981;" id="count-vacant-wardA">0</div>
+                   </div>
+                   <div style="flex: 1; text-align: center; background: rgba(99, 102, 241, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #6366f1; font-weight: 800; text-transform: uppercase;">Occupied</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #6366f1;" id="count-occ-wardA">0</div>
+                   </div>
+                </div>
+              </div>
+              <div style="height: 6px; background: var(--gray-100); width: 100%;"><div id="capBar-wardA" style="height: 100%; width: 0%; background: #6366f1; transition: width 0.5s;"></div></div>
+              <div class="dashboard-card-body">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;" id="wardA"></div>
+              </div>
+            </div>
+            
+            <div class="dashboard-card">
+              <div class="dashboard-card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-100); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; width: 100%;">
+                   <h3 class="dashboard-card-title"><i data-lucide="shield"></i> ICU Unit</h3>
+                   <span class="badge badge-danger" id="badge-wardB">--</span>
+                </div>
+                <div style="display: flex; gap: 1rem; width: 100%; margin-top: 0.5rem;">
+                   <div style="flex: 1; text-align: center; background: rgba(16, 185, 129, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #10b981; font-weight: 800; text-transform: uppercase;">Vacant</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #10b981;" id="count-vacant-wardB">0</div>
+                   </div>
+                   <div style="flex: 1; text-align: center; background: rgba(239, 68, 68, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #ef4444; font-weight: 800; text-transform: uppercase;">Occupied</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #ef4444;" id="count-occ-wardB">0</div>
+                   </div>
+                </div>
+              </div>
+              <div style="height: 6px; background: var(--gray-100); width: 100%;"><div id="capBar-wardB" style="height: 100%; width: 0%; background: #ef4444; transition: width 0.5s;"></div></div>
+              <div class="dashboard-card-body">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;" id="wardB"></div>
+              </div>
+            </div>
+
+            <div class="dashboard-card">
+              <div class="dashboard-card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-100); flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+                <div style="display: flex; justify-content: space-between; width: 100%;">
+                   <h3 class="dashboard-card-title"><i data-lucide="star"></i> Private Suites</h3>
+                   <span class="badge badge-primary" id="badge-wardC">--</span>
+                </div>
+                <div style="display: flex; gap: 1rem; width: 100%; margin-top: 0.5rem;">
+                   <div style="flex: 1; text-align: center; background: rgba(16, 185, 129, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #10b981; font-weight: 800; text-transform: uppercase;">Vacant</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #10b981;" id="count-vacant-wardC">0</div>
+                   </div>
+                   <div style="flex: 1; text-align: center; background: rgba(139, 92, 246, 0.1); padding: 0.75rem; border-radius: 12px;">
+                     <div style="font-size: 0.75rem; color: #8b5cf6; font-weight: 800; text-transform: uppercase;">Occupied</div>
+                     <div style="font-size: 1.5rem; font-weight: 800; color: #8b5cf6;" id="count-occ-wardC">0</div>
+                   </div>
+                </div>
+              </div>
+              <div style="height: 6px; background: var(--gray-100); width: 100%;"><div id="capBar-wardC" style="height: 100%; width: 0%; background: #8b5cf6; transition: width 0.5s;"></div></div>
+              <div class="dashboard-card-body">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;" id="wardC"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid" style="grid-template-columns: 2fr 1fr; gap: 2rem; margin-top: 2rem;">
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="trending-up"></i> Bed Occupancy Forecast (24h)</h3></div>
+              <div class="dashboard-card-body"><div style="height: 250px;"><canvas id="bedTrendChart"></canvas></div></div>
+            </div>
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="clipboard-list"></i> Real-time Turnover</h3></div>
+              <div class="dashboard-card-body">
+                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                   <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--gray-50); border-radius: 1rem;">
+                     <div style="display: flex; align-items: center; gap: 1rem;">
+                       <div style="width: 40px; height: 40px; background: #dcfce7; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #166534;"><i data-lucide="log-out"></i></div>
+                       <div><div style="font-weight: 700; font-size: 0.95rem;">Discharge Pipeline</div><div style="font-size: 0.8rem; color: var(--gray-500);">Awaiting final EMR signoff</div></div>
+                     </div>
+                     <div style="font-size: 1.25rem; font-weight: 800; color: #166534;">8</div>
+                   </div>
+                   <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--gray-50); border-radius: 1rem;">
+                     <div style="display: flex; align-items: center; gap: 1rem;">
+                       <div style="width: 40px; height: 40px; background: #fef3c7; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #92400e;"><i data-lucide="sparkles"></i></div>
+                       <div><div style="font-weight: 700; font-size: 0.95rem;">Cleaning in Progress</div><div style="font-size: 0.8rem; color: var(--gray-500);">Auto-alerted housekeeping</div></div>
+                     </div>
+                     <div style="font-size: 1.25rem; font-weight: 800; color: #92400e;">3</div>
+                   </div>
+                   <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--gray-50); border-radius: 1rem;">
+                     <div style="display: flex; align-items: center; gap: 1rem;">
+                       <div style="width: 40px; height: 40px; background: #fee2e2; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #991b1b;"><i data-lucide="settings"></i></div>
+                       <div><div style="font-weight: 700; font-size: 0.95rem;">Maintenance Required</div><div style="font-size: 0.8rem; color: var(--gray-500);">Biomedical engineering alerted</div></div>
+                     </div>
+                     <div style="font-size: 1.25rem; font-weight: 800; color: #991b1b;">2</div>
+                   </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        </section>
+
+        <!-- Queue Section -->
+        <section id="queueSection" class="dashboard-section">
+          <h1 class="dashboard-title">Live Triage Queue</h1>
+          <p class="dashboard-subtitle">AI-prioritized patient queue management.</p>
+          
+          <div class="dashboard-card mt-xl">
+            <div class="dashboard-card-header">
+              <h3 class="dashboard-card-title">Active Admissions</h3>
+            </div>
+            <div class="dashboard-card-body">
+              <div class="queue-list" id="adminQueueList"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Staff Section -->
+        <section id="doctorsSection" class="dashboard-section">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+            <div>
+              <h1 class="dashboard-title">Medical Staff Command</h1>
+              <p class="dashboard-subtitle">Monitoring active duty cycles, surgery schedules, and clinical efficiency.</p>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+               <button class="btn btn-primary"><i data-lucide="plus"></i> Onboard New Staff</button>
+            </div>
+          </div>
+
+          <div class="stats-grid" style="margin-bottom: 2rem;">
+            <div class="stat-card"><div class="stat-icon primary"><i data-lucide="users"></i></div><div class="stat-content"><div class="stat-label">Total Doctors</div><div class="stat-value">42</div><div class="stat-change positive">Full strength</div></div></div>
+            <div class="stat-card"><div class="stat-icon success"><i data-lucide="user-check"></i></div><div class="stat-content"><div class="stat-label">On Duty Now</div><div class="stat-value">18</div><div class="stat-change">Active cases</div></div></div>
+            <div class="stat-card"><div class="stat-icon danger"><i data-lucide="scissors"></i></div><div class="stat-content"><div class="stat-label">In Surgery</div><div class="stat-value">4</div><div class="stat-change negative">OTs occupied</div></div></div>
+            <div class="stat-card"><div class="stat-icon warning"><i data-lucide="coffee"></i></div><div class="stat-content"><div class="stat-label">On Break</div><div class="stat-value">3</div><div class="stat-change">Resting</div></div></div>
+          </div>
+
+          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
+            <button class="btn btn-sm btn-primary">All Departments</button>
+            <button class="btn btn-sm btn-ghost">Cardiology</button>
+            <button class="btn btn-sm btn-ghost">Neurology</button>
+            <button class="btn btn-sm btn-ghost">Orthopedics</button>
+            <button class="btn btn-sm btn-ghost">Pediatrics</button>
+            <button class="btn btn-sm btn-ghost">General Surgery</button>
+          </div>
+
+          <div class="doctor-grid" id="adminDoctorGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem;">
+            <!-- Injected by Script -->
+          </div>
+        </section>
+
+        <!-- Patients Section -->
+        <section id="patientsSection" class="dashboard-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+              <h1 class="dashboard-title">Clinical Registry</h1>
+              <p class="dashboard-subtitle">Monitoring patient demographics and current clinical status.</p>
+            </div>
+            <div style="display: flex; gap: 1.5rem; align-items: center; background: white; padding: 1rem 1.5rem; border-radius: 1.25rem; border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm);">
+               <div style="text-align: center; padding-right: 1.5rem; border-right: 1px solid var(--gray-100);">
+                  <div style="font-size: 0.6rem; color: var(--gray-400); font-weight: 700; text-transform: uppercase;">Total Cases</div>
+                  <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">1,482</div>
+               </div>
+               <div style="text-align: center;">
+                  <div style="font-size: 0.6rem; color: #ef4444; font-weight: 700; text-transform: uppercase;">Critical</div>
+                  <div style="font-size: 1.5rem; font-weight: 800; color: #ef4444;">12</div>
+               </div>
+            </div>
+          </div>
+          
+          <div class="dashboard-card">
+            <div class="dashboard-card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem;">
+              <div style="display: flex; gap: 0.5rem;">
+                 <button class="btn btn-sm btn-white active" onclick="filterRegistry('all', this)">All Patients</button>
+                 <button class="btn btn-sm btn-ghost" onclick="filterRegistry('Critical', this)">Critical</button>
+                 <button class="btn btn-sm btn-ghost" onclick="filterRegistry('Stable', this)">Stable</button>
+              </div>
+              <div class="search-box" style="max-width: 300px; margin-bottom: 0;">
+                <i data-lucide="search"></i>
+                <input type="text" id="registrySearch" placeholder="Search by name, ID or symptom...">
+              </div>
+            </div>
+            <div class="dashboard-card-body" style="padding: 0; overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Patient Details</th>
+                    <th>Clinical Profile</th>
+                    <th>Primary Symptom</th>
+                    <th>Clinical Status</th>
+                    <th>Admission</th>
+                    <th style="text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="registryBody">
+                  <!-- Dynamic Content -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Emergency Section -->
+        <section id="emergencySection" class="dashboard-section">
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+            <div>
+              <h1 class="dashboard-title text-danger" style="display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="siren" class="animate-pulse"></i> Emergency Command Hub
+              </h1>
+              <p class="dashboard-subtitle">Global hospital crisis management and rapid-response protocols.</p>
+            </div>
+            <div id="active-crisis-banner" style="display: none; background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800; font-size: 0.8rem; animation: pulse 1s infinite;">
+              <i data-lucide="alert-octagon" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>
+              CRISIS PROTOCOL ACTIVE: <span id="active-code-name">NONE</span>
+            </div>
+          </div>
+          
+          <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem;">
+            <!-- Code Red -->
+            <div class="emergency-btn red" onclick="triggerEmergency('Code Red')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="flame"></i></div>
+                <h3>Code Red</h3>
+                <p>Fire & Evacuation</p>
+                <div class="eb-status">SYSTEM READY</div>
+              </div>
+            </div>
+            
+            <!-- Code Blue -->
+            <div class="emergency-btn blue" onclick="triggerEmergency('Code Blue')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="heart-pulse"></i></div>
+                <h3>Code Blue</h3>
+                <p>Cardiac Arrest</p>
+                <div class="eb-status">NURSE-LINK ACTIVE</div>
+              </div>
+            </div>
+
+            <!-- Code Orange -->
+            <div class="emergency-btn orange" onclick="triggerEmergency('Code Orange')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="shield-alert"></i></div>
+                <h3>Code Orange</h3>
+                <p>Mass Casualty</p>
+                <div class="eb-status">TRIAGE MODE READY</div>
+              </div>
+            </div>
+
+            <!-- Code Pink -->
+            <div class="emergency-btn pink" onclick="triggerEmergency('Code Pink')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="baby"></i></div>
+                <h3>Code Pink</h3>
+                <p>Infant Security</p>
+                <div class="eb-status">WARD LOCK READY</div>
+              </div>
+            </div>
+
+            <!-- Code Black -->
+            <div class="emergency-btn black" onclick="triggerEmergency('Code Black')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="shield-off"></i></div>
+                <h3>Code Black</h3>
+                <p>Security Threat</p>
+                <div class="eb-status">LOCKDOWN READY</div>
+              </div>
+            </div>
+
+            <!-- Code Yellow -->
+            <div class="emergency-btn yellow" onclick="triggerEmergency('Code Yellow')">
+              <div class="eb-glow"></div>
+              <div class="eb-content">
+                <div class="eb-icon"><i data-lucide="cloud-lightning"></i></div>
+                <h3>Code Yellow</h3>
+                <p>External Disaster</p>
+                <div class="eb-status">LOGISTICS READY</div>
+              </div>
+            </div>
+          </div>
+
+          <style>
+            .emergency-btn {
+              position: relative;
+              background: white;
+              border-radius: 1.5rem;
+              padding: 2rem;
+              border: 1px solid var(--gray-100);
+              cursor: pointer;
+              overflow: hidden;
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+              text-align: center;
+              box-shadow: var(--shadow-sm);
+            }
+            .emergency-btn:hover {
+              transform: translateY(-8px);
+              box-shadow: var(--shadow-xl);
+            }
+            .eb-glow {
+              position: absolute;
+              top: 0; left: 0; right: 0; bottom: 0;
+              background: radial-gradient(circle at center, var(--eb-color) 0%, transparent 70%);
+              opacity: 0.05;
+              transition: opacity 0.3s;
+            }
+            .emergency-btn:hover .eb-glow { opacity: 0.15; }
+            .eb-icon {
+              width: 56px; height: 56px;
+              background: var(--eb-bg);
+              color: var(--eb-color);
+              border-radius: 1rem;
+              display: flex; align-items: center; justify-content: center;
+              margin: 0 auto 1.5rem;
+              transition: all 0.3s;
+            }
+            .emergency-btn:hover .eb-icon { transform: scale(1.1) rotate(5deg); }
+            .emergency-btn h3 { margin: 0 0 0.5rem; color: var(--gray-900); font-weight: 800; }
+            .emergency-btn p { margin: 0 0 1.5rem; color: var(--gray-500); font-size: 0.875rem; }
+            .eb-status {
+              font-size: 0.65rem; font-weight: 900; color: var(--eb-color);
+              letter-spacing: 0.05em; padding: 0.5rem; background: var(--eb-bg);
+              border-radius: 0.5rem; display: inline-block;
+            }
+
+            /* Code Specifics */
+            .emergency-btn.red { --eb-color: #ef4444; --eb-bg: rgba(239, 68, 68, 0.1); }
+            .emergency-btn.blue { --eb-color: #3b82f6; --eb-bg: rgba(59, 130, 246, 0.1); }
+            .emergency-btn.orange { --eb-color: #f97316; --eb-bg: rgba(249, 115, 22, 0.1); }
+            .emergency-btn.pink { --eb-color: #ec4899; --eb-bg: rgba(236, 72, 153, 0.1); }
+            .emergency-btn.black { --eb-color: #1f2937; --eb-bg: rgba(31, 41, 55, 0.1); }
+            .emergency-btn.yellow { --eb-color: #eab308; --eb-bg: rgba(234, 179, 8, 0.1); }
+
+            .emergency-btn:active { transform: scale(0.95); }
+          </style>
+
+          <div id="crisis-protocol-panel" style="display: none; margin-top: 2rem;" class="animate-fade-in">
+             <div class="dashboard-card" style="border: 2px solid #ef4444;">
+                <div class="dashboard-card-header" style="background: #fee2e2; border-bottom: 1px solid #fecaca;">
+                   <h3 class="dashboard-card-title" style="color: #b91c1c;"><i data-lucide="clipboard-check"></i> AI Response Checklist: <span id="protocol-title"></span></h3>
+                   <button class="btn btn-sm btn-danger" onclick="cancelCrisis()">Deactivate Code</button>
+                </div>
+                <div class="dashboard-card-body">
+                   <div id="protocol-steps" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                      <!-- Dynamic Steps -->
+                   </div>
+                </div>
+             </div>
+          </div>
+        </section>
+
+        <section id="inventorySection" class="dashboard-section">
+          <h1 class="dashboard-title">AI Procurement & Supply</h1>
+          <p class="dashboard-subtitle">Automated inventory tracking, consumption analytics, and predictive ordering.</p>
+          <div class="stats-grid" style="margin-top:1.5rem">
+            <div class="stat-card"><div class="stat-icon primary"><i data-lucide="package"></i></div><div class="stat-content"><div class="stat-label">Total SKUs</div><div class="stat-value">284</div><div class="stat-change positive">All tracked</div></div></div>
+            <div class="stat-card"><div class="stat-icon danger"><i data-lucide="alert-triangle"></i></div><div class="stat-content"><div class="stat-label">Critical Stock</div><div class="stat-value">6</div><div class="stat-change negative">Needs reorder</div></div></div>
+            <div class="stat-card"><div class="stat-icon warning"><i data-lucide="truck"></i></div><div class="stat-content"><div class="stat-label">Pending Orders</div><div class="stat-value">3</div><div class="stat-change">In transit</div></div></div>
+            <div class="stat-card"><div class="stat-icon success"><i data-lucide="indian-rupee"></i></div><div class="stat-content"><div class="stat-label">Monthly Spend</div><div class="stat-value">₹4.2L</div><div class="stat-change positive">-8% vs last month</div></div></div>
+          </div>
+          <div class="grid" style="grid-template-columns:1.5fr 1fr;gap:2rem;margin-top:2rem">
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="package"></i> Stock Levels</h3></div>
+              <div class="dashboard-card-body" style="padding:0">
+                <table style="width:100%;border-collapse:collapse">
+                  <thead style="background:var(--gray-50)"><tr><th style="padding:.75rem 1rem;text-align:left;font-size:.75rem;color:var(--gray-500)">Item</th><th style="padding:.75rem 1rem">Category</th><th style="padding:.75rem 1rem">Stock</th><th style="padding:.75rem 1rem">Status</th></tr></thead>
+                  <tbody>
+                    <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1rem;font-weight:600">Paracetamol 650mg</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">Analgesic</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:18%;background:#ef4444;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">430 units</span></td><td style="padding:.85rem 1rem"><span class="badge badge-danger">Critical</span></td></tr>
+                    <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1rem;font-weight:600">O-Neg Blood Units</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">Blood Bank</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:12%;background:#ef4444;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">6 units</span></td><td style="padding:.85rem 1rem"><span class="badge badge-danger">Critical</span></td></tr>
+                    <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1rem;font-weight:600">Insulin Glargine</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">Endocrine</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:38%;background:#f59e0b;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">95 vials</span></td><td style="padding:.85rem 1rem"><span class="badge badge-warning">Low</span></td></tr>
+                    <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1rem;font-weight:600">Surgical Gloves (L)</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">PPE</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:72%;background:#10b981;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">1,800 prs</span></td><td style="padding:.85rem 1rem"><span class="badge badge-success">OK</span></td></tr>
+                    <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1rem;font-weight:600">N95 Masks</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">PPE</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:55%;background:#3b82f6;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">2,200 units</span></td><td style="padding:.85rem 1rem"><span class="badge badge-primary">Adequate</span></td></tr>
+                    <tr><td style="padding:.85rem 1rem;font-weight:600">IV Normal Saline</td><td style="padding:.85rem 1rem;font-size:.8rem;color:var(--gray-500)">IV Fluids</td><td style="padding:.85rem 1rem"><div style="background:var(--gray-100);border-radius:4px;height:6px"><div style="width:85%;background:#10b981;height:6px;border-radius:4px"></div></div><span style="font-size:.7rem">850 bags</span></td><td style="padding:.85rem 1rem"><span class="badge badge-success">OK</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="bar-chart-2"></i> Consumption Forecast</h3></div>
+              <div class="dashboard-card-body"><div style="height:350px"><canvas id="inventoryChart"></canvas></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Financial Analytics Section -->
+        <section id="analyticsSection" class="dashboard-section">
+          <h1 class="dashboard-title">Financial & Operational Analytics</h1>
+          <p class="dashboard-subtitle">Real-time hospital revenue, cost optimization, and AI-driven ROI tracking.</p>
+          <div class="stats-grid" style="margin-top:1.5rem">
+            <div class="stat-card"><div class="stat-icon success"><i data-lucide="trending-up"></i></div><div class="stat-content"><div class="stat-label">Monthly Revenue</div><div class="stat-value">₹38.6L</div><div class="stat-change positive">+14% MoM</div></div></div>
+            <div class="stat-card"><div class="stat-icon warning"><i data-lucide="receipt"></i></div><div class="stat-content"><div class="stat-label">Operating Costs</div><div class="stat-value">₹22.1L</div><div class="stat-change negative">+3% MoM</div></div></div>
+            <div class="stat-card"><div class="stat-icon primary"><i data-lucide="percent"></i></div><div class="stat-content"><div class="stat-label">EBITDA Margin</div><div class="stat-value">42.7%</div><div class="stat-change positive">Best Q</div></div></div>
+            <div class="stat-card"><div class="stat-icon success"><i data-lucide="zap"></i></div><div class="stat-content"><div class="stat-label">AI Cost Savings</div><div class="stat-value">₹2.8L</div><div class="stat-change positive">This month</div></div></div>
+          </div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:2rem;margin-top:2rem">
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="bar-chart-3"></i> Revenue vs Cost (₹ Lakhs)</h3></div>
+              <div class="dashboard-card-body"><div style="height:350px"><canvas id="revenueChart"></canvas></div></div>
+            </div>
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="pie-chart"></i> Revenue by Department</h3></div>
+              <div class="dashboard-card-body"><div style="height:350px"><canvas id="deptRevenueChart"></canvas></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Facility Control Section -->
+        <section id="facilitySection" class="dashboard-section">
+          <h1 class="dashboard-title">Smart Facility Control</h1>
+          <p class="dashboard-subtitle">AI-managed IoT systems for power, HVAC, security, and infrastructure.</p>
+          <div class="grid" style="grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:1.5rem">
+            <div class="dashboard-card" style="text-align:center">
+              <div class="dashboard-card-body">
+                <div style="width:64px;height:64px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:#16a34a"><i data-lucide="zap" style="width:28px;height:28px"></i></div>
+                <div style="font-size:1.75rem;font-weight:800;color:#16a34a">68%</div>
+                <div style="font-size:.8rem;color:var(--gray-500);margin-top:.25rem">Power Load</div>
+                <div style="font-size:.7rem;margin-top:.5rem;color:#16a34a">AI Optimized</div>
+              </div>
+            </div>
+            <div class="dashboard-card" style="text-align:center">
+              <div class="dashboard-card-body">
+                <div style="width:64px;height:64px;background:#dbeafe;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:#2563eb"><i data-lucide="thermometer" style="width:28px;height:28px"></i></div>
+                <div style="font-size:1.75rem;font-weight:800;color:#2563eb">22°C</div>
+                <div style="font-size:.8rem;color:var(--gray-500);margin-top:.25rem">HVAC Avg Temp</div>
+                <div style="font-size:.7rem;margin-top:.5rem;color:#2563eb">All Zones Green</div>
+              </div>
+            </div>
+            <div class="dashboard-card" style="text-align:center">
+              <div class="dashboard-card-body">
+                <div style="width:64px;height:64px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:#d97706"><i data-lucide="shield" style="width:28px;height:28px"></i></div>
+                <div style="font-size:1.75rem;font-weight:800;color:#d97706">24/7</div>
+                <div style="font-size:.8rem;color:var(--gray-500);margin-top:.25rem">Security Status</div>
+                <div style="font-size:.7rem;margin-top:.5rem;color:#d97706">14 Cameras Active</div>
+              </div>
+            </div>
+            <div class="dashboard-card" style="text-align:center">
+              <div class="dashboard-card-body">
+                <div style="width:64px;height:64px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;color:#16a34a"><i data-lucide="wifi" style="width:28px;height:28px"></i></div>
+                <div style="font-size:1.75rem;font-weight:800;color:#16a34a">99.9%</div>
+                <div style="font-size:.8rem;color:var(--gray-500);margin-top:.25rem">Network Uptime</div>
+                <div style="font-size:.7rem;margin-top:.5rem;color:#16a34a">Fiber + Backup LTE</div>
+              </div>
+            </div>
+          </div>
+          <div class="grid" style="grid-template-columns:1.5fr 1fr;gap:2rem;margin-top:2rem">
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="activity"></i> Power Consumption (kWh / Hour)</h3></div>
+              <div class="dashboard-card-body"><div style="height:240px"><canvas id="powerChart"></canvas></div></div>
+            </div>
+            <div class="dashboard-card">
+              <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="thermometer"></i> Zone Temperatures</h3></div>
+              <div class="dashboard-card-body">
+                <div style="display:flex;flex-direction:column;gap:1rem">
+                  <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>ICU</span><strong style="color:#ef4444">18°C</strong></div><div style="background:var(--gray-100);border-radius:4px;height:8px"><div style="width:30%;background:#3b82f6;height:8px;border-radius:4px"></div></div></div>
+                  <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>OT / Surgery</span><strong style="color:#2563eb">16°C</strong></div><div style="background:var(--gray-100);border-radius:4px;height:8px"><div style="width:22%;background:#6366f1;height:8px;border-radius:4px"></div></div></div>
+                  <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>General Ward</span><strong style="color:#10b981">24°C</strong></div><div style="background:var(--gray-100);border-radius:4px;height:8px"><div style="width:55%;background:#10b981;height:8px;border-radius:4px"></div></div></div>
+                  <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>Pediatric Ward</span><strong style="color:#f59e0b">25°C</strong></div><div style="background:var(--gray-100);border-radius:4px;height:8px"><div style="width:60%;background:#f59e0b;height:8px;border-radius:4px"></div></div></div>
+                  <div><div style="display:flex;justify-content:space-between;font-size:.875rem;margin-bottom:.25rem"><span>Pharmacy Store</span><strong style="color:#10b981">20°C</strong></div><div style="background:var(--gray-100);border-radius:4px;height:8px"><div style="width:40%;background:#10b981;height:8px;border-radius:4px"></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- System Audit Trail Section -->
+        <section id="logsSection" class="dashboard-section">
+          <h1 class="dashboard-title">System Audit Trail</h1>
+          <p class="dashboard-subtitle">Immutable, blockchain-hashed logs of all system actions for regulatory compliance.</p>
+          <div class="stats-grid" style="margin-top:1.5rem">
+            <div class="stat-card"><div class="stat-icon primary"><i data-lucide="file-text"></i></div><div class="stat-content"><div class="stat-label">Events Today</div><div class="stat-value">1,284</div><div class="stat-change positive">All hashed</div></div></div>
+            <div class="stat-card"><div class="stat-icon success"><i data-lucide="shield-check"></i></div><div class="stat-content"><div class="stat-label">Compliance</div><div class="stat-value">100%</div><div class="stat-change positive">NABH Ready</div></div></div>
+            <div class="stat-card"><div class="stat-icon warning"><i data-lucide="alert-circle"></i></div><div class="stat-content"><div class="stat-label">Warnings</div><div class="stat-value">2</div><div class="stat-change negative">Needs review</div></div></div>
+            <div class="stat-card"><div class="stat-icon danger"><i data-lucide="x-circle"></i></div><div class="stat-content"><div class="stat-label">Errors</div><div class="stat-value">0</div><div class="stat-change positive">Clean log</div></div></div>
+          </div>
+          <div class="dashboard-card" style="margin-top:2rem">
+            <div class="dashboard-card-header"><h3 class="dashboard-card-title"><i data-lucide="list"></i> Recent Audit Events</h3></div>
+            <div class="dashboard-card-body" style="padding:0">
+              <table style="width:100%;border-collapse:collapse">
+                <thead style="background:var(--gray-50)"><tr><th style="padding:.75rem 1.25rem;text-align:left;font-size:.75rem;color:var(--gray-500)">Timestamp</th><th style="padding:.75rem 1.25rem;text-align:left;font-size:.75rem;color:var(--gray-500)">User</th><th style="padding:.75rem 1.25rem;text-align:left;font-size:.75rem;color:var(--gray-500)">Action</th><th style="padding:.75rem 1.25rem;text-align:left;font-size:.75rem;color:var(--gray-500)">Module</th><th style="padding:.75rem 1.25rem;text-align:left;font-size:.75rem;color:var(--gray-500)">Status</th></tr></thead>
+                <tbody>
+                  <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">14:58:22</td><td style="padding:.85rem 1.25rem;font-weight:600">Dr. Sarah Smith</td><td style="padding:.85rem 1.25rem;font-size:.875rem">Completed case #E-8821</td><td style="padding:.85rem 1.25rem"><span class="badge badge-primary">Emergency</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-success">OK</span></td></tr>
+                  <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">14:55:10</td><td style="padding:.85rem 1.25rem;font-weight:600">Admin System</td><td style="padding:.85rem 1.25rem;font-size:.875rem">AI auto-ordered Paracetamol 650mg (5000 units)</td><td style="padding:.85rem 1.25rem"><span class="badge">Procurement</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-success">OK</span></td></tr>
+                  <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">14:41:05</td><td style="padding:.85rem 1.25rem;font-weight:600">Admin User</td><td style="padding:.85rem 1.25rem;font-size:.875rem">Triggered Code Blue â€“ Ward B, Bed 204</td><td style="padding:.85rem 1.25rem"><span class="badge badge-danger">Emergency</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-success">OK</span></td></tr>
+                  <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">14:30:00</td><td style="padding:.85rem 1.25rem;font-weight:600">Neural Core AI</td><td style="padding:.85rem 1.25rem;font-size:.875rem">Rerouted 3 nursing staff to ICU (load-balancing)</td><td style="padding:.85rem 1.25rem"><span class="badge badge-primary">AI Engine</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-success">OK</span></td></tr>
+                  <tr style="border-bottom:1px solid var(--gray-50)"><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">13:58:44</td><td style="padding:.85rem 1.25rem;font-weight:600">Dr. Rajesh Iyer</td><td style="padding:.85rem 1.25rem;font-size:.875rem">Updated prescription â€“ Patient Arjun Singh</td><td style="padding:.85rem 1.25rem"><span class="badge">Pharmacy</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-success">OK</span></td></tr>
+                  <tr><td style="padding:.85rem 1.25rem;font-size:.8rem;color:var(--gray-500)">13:22:11</td><td style="padding:.85rem 1.25rem;font-weight:600">Admin System</td><td style="padding:.85rem 1.25rem;font-size:.875rem">Login from unrecognised IP: 203.x.x.91</td><td style="padding:.85rem 1.25rem"><span class="badge badge-warning">Security</span></td><td style="padding:.85rem 1.25rem"><span class="badge badge-warning">Warning</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        <!-- AI Capacity Heatmap Section -->
+        <section id="capacitySection" class="dashboard-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem;">
+            <div>
+              <h1 class="dashboard-title">Live Facility Capacity Map</h1>
+              <p class="dashboard-subtitle">Real-time load balancing across clinical units with AI-predicted bottleneck detection.</p>
+            </div>
+            <div style="display: flex; gap: 1.5rem; background: white; padding: 1rem 1.5rem; border-radius: 1.25rem; border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm);">
+               <div style="display:flex; align-items:center; gap:0.6rem; font-size:0.85rem; font-weight:800; color:var(--gray-600);"><div style="width:12px; height:12px; background:#10b981; border-radius:3px;"></div> Optimal</div>
+               <div style="display:flex; align-items:center; gap:0.6rem; font-size:0.85rem; font-weight:800; color:var(--gray-600);"><div style="width:12px; height:12px; background:#f59e0b; border-radius:3px;"></div> High Load</div>
+               <div style="display:flex; align-items:center; gap:0.6rem; font-size:0.85rem; font-weight:800; color:var(--gray-600);"><div style="width:12px; height:12px; background:#ef4444; border-radius:3px;"></div> Critical</div>
+            </div>
+          </div>
+
+          <div class="grid" style="grid-template-columns: 1.5fr 1fr; gap: 2.5rem;">
+             <!-- Heatmap Cards -->
+             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;" id="capacityHeatmapGrid">
+                <!-- Injected by JS -->
+             </div>
+
+             <!-- AI Logistics Feed -->
+             <div class="dashboard-card" style="display: flex; flex-direction: column; min-height: 600px;">
+                <div class="dashboard-card-header">
+                   <h3 class="dashboard-card-title"><i data-lucide="zap"></i> Neural Core Logistics</h3>
+                </div>
+                <div class="dashboard-card-body" id="logisticsFeed" style="flex: 1; overflow-y: auto;">
+                   <!-- Injected by JS -->
+                </div>
+                <div style="padding: 2rem; border-top: 1px solid var(--gray-100); background: #f8fafc;">
+                   <h5 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 800; color: var(--gray-900);">Global AI Strategy</h5>
+                   <div style="background: #eff6ff; border: 1.25px solid #bfdbfe; padding: 1.25rem; border-radius: 1.25rem; color: #1e40af; font-size: 0.9rem; font-weight: 700; line-height: 1.5;">
+                      <i data-lucide="info" style="width: 16px; display: inline; vertical-align: middle; margin-right: 4px;"></i>
+                      Detected surge in ER (Triage +12% MoM). AI recommends immediate rerouting of 3 non-emergency specialists to OT Wing B for surgical load balancing.
+                   </div>
+                   <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; height: 50px; font-weight: 800;">Execute Load Balancing</button>
+                </div>
+             </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Global Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle"><i data-lucide="info"></i> Details</h3>
+        <button class="modal-close" onclick="closeModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Injected -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+        <button class="btn btn-primary" id="modalActionBtn">Print Report</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const userName = localStorage.getItem('userName') || 'Administrator';
+      document.getElementById('adminName').textContent = userName;
+      safeCreateIcons();
+      initializeAdminDashboard();
+      initializeCharts();
+      startAIStream();
+      renderInventory();
+      renderPatientRegistry();
+      startLiveSimulation();
+    });
+
+    async function initializeAdminDashboard() {
+      try {
+        const dashboard = await SHMS_API.getDashboardState();
+        updateAdminUI(dashboard);
+        renderDoctorDirectory();
+        
+        // Setup real-time updates
+        setupRealtime((data) => {
+          updateAdminUI(data);
+        });
+      } catch (error) {
+        console.error("Dashboard init error:", error);
+      }
+    }
+
+    function updateAdminUI(data) {
+      // Professional Scale: 40 beds total
+      let allBeds = [];
+      const counts = { 'General': 20, 'ICU': 10, 'Pediatric': 10 };
+      const prefixes = { 'General': 'A', 'ICU': 'B', 'Pediatric': 'C' };
+      
+      Object.keys(counts).forEach(w => {
+        for (let i = 1; i <= counts[w]; i++) {
+          allBeds.push({
+            code: `${prefixes[w]}-${i}`,
+            ward: w,
+            isOccupied: Math.random() > 0.6,
+            type: w === 'ICU' ? 'Critical' : (w === 'Pediatric' ? 'Private' : 'Standard')
+          });
+        }
+      });
+
+      const totalBeds = allBeds.length;
+      const availableBeds = allBeds.filter(b => !b.isOccupied).length;
+
+      if (document.getElementById('stat-beds'))
+        document.getElementById('stat-beds').textContent = `${availableBeds}/${totalBeds}`;
+      if (document.getElementById('stat-emergencies'))
+        document.getElementById('stat-emergencies').textContent = data.emergencies.filter(e => e.status !== 'COMPLETED').length;
+      
+      renderBedGrids(allBeds);
+      if (typeof renderAdminQueue === 'function') renderAdminQueue(data.emergencies);
+      if (typeof updateEmergencyStatus === 'function') updateEmergencyStatus(data.emergencies);
+      if (typeof updateAIInsights === 'function') updateAIInsights(data.emergencies.length);
+    }
+
+    function updateEmergencyStatus(emergencies) {
+      const statusElem = document.getElementById('emergency-status');
+      if (!statusElem) return;
+      const active = emergencies.filter(e => e.status !== 'COMPLETED');
+      const critical = active.filter(e => e.priority === 'CRITICAL');
+      
+      if (critical.length > 0) {
+        statusElem.textContent = `${critical.length} Critical Alerts`;
+        statusElem.className = 'stat-change negative';
+      } else {
+        statusElem.textContent = active.length > 0 ? 'Monitoring Active Cases' : 'All Systems Clear';
+        statusElem.className = 'stat-change positive';
+      }
+    }
+
+    const AI_LOG_ENTRIES = [
+      { type: 'critical', icon: 'alert-triangle', time: '17:14', title: 'ICU Capacity Alert', msg: 'ICU at 94% load. Discharge pipeline bottleneck detected. Housekeeping rerouted.' },
+      { type: 'action',   icon: 'shuffle',        time: '17:08', title: 'Staff Reallocation', msg: 'Rerouted 2 Radiology specialists to Emergency Ward. Surge response activated.' },
+      { type: 'success',  icon: 'check-circle',   time: '16:55', title: 'Triage Optimized',  msg: 'OPD Clinic A throughput increased by 14% via AI queue compression.' },
+      { type: 'predict',  icon: 'trending-up',    time: '16:42', title: 'Surge Prediction',  msg: 'ER load forecast: +18% in ~1.5 hrs. Ward B preparation recommended.' },
+      { type: 'info',     icon: 'clipboard-list', time: '16:30', title: 'Compliance Audit',  msg: 'OT utilization at 92% peak efficiency. No protocol deviations detected.' },
+      { type: 'action',   icon: 'package',        time: '16:18', title: 'Pharmacy Trigger',  msg: 'Auto-generated refill request for Pediatric Wing (Paracetamol, Saline).' },
+      { type: 'success',  icon: 'shield',         time: '16:05', title: 'Security Cleared',  msg: 'System-wide anomaly scan complete. Zero threats detected across all nodes.' },
+      { type: 'predict',  icon: 'clock',          time: '15:52', title: 'Wait Time Alert',   msg: 'Avg wait time in ER projected to reach 20m. Triage staff alerted.' }
+    ];
+
+    const AI_LOG_STYLES = {
+      critical: { bg: '#fef2f2', border: '#fecaca', badge: '#ef4444', text: '#991b1b', label: 'CRITICAL' },
+      action:   { bg: '#f5f3ff', border: '#ddd6fe', badge: '#6366f1', text: '#3730a3', label: 'ACTION'   },
+      success:  { bg: '#f0fdf4', border: '#bbf7d0', badge: '#10b981', text: '#065f46', label: 'SUCCESS'  },
+      predict:  { bg: '#fffbeb', border: '#fde68a', badge: '#f59e0b', text: '#92400e', label: 'PREDICT'  },
+      info:     { bg: '#eff6ff', border: '#bfdbfe', badge: '#3b82f6', text: '#1e40af', label: 'INFO'     }
+    };
+
+    function startAIStream() {
+      const feed = document.getElementById('ai-decision-feed');
+      if (!feed) return;
+
+      let critCount = 0, actionCount = 0, successCount = 0;
+
+      feed.innerHTML = '';
+      AI_LOG_ENTRIES.forEach((entry, idx) => {
+        const s = AI_LOG_STYLES[entry.type];
+        if (entry.type === 'critical') critCount++;
+        if (entry.type === 'action') actionCount++;
+        if (entry.type === 'success') successCount++;
+
+        const div = document.createElement('div');
+        div.style.cssText = `
+          display: flex; gap: 1.25rem; padding: 1.25rem 1.5rem;
+          background: ${s.bg}; border: 1px solid ${s.border};
+          border-radius: 1.25rem; border-left: 5px solid ${s.badge};
+          animation: slideInLeft 0.4s ease-out ${idx * 80}ms both;
+          transition: transform 0.2s, box-shadow 0.2s;
+          cursor: default;
+        `;
+        div.onmouseover = () => { div.style.transform = 'translateX(5px)'; div.style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)'; };
+        div.onmouseout  = () => { div.style.transform = ''; div.style.boxShadow = ''; };
+        div.innerHTML = `
+          <div style="width: 42px; height: 42px; background: ${s.badge}22; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+            <i data-lucide="${entry.icon}" style="width: 20px; height: 20px; color: ${s.badge};"></i>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="font-size: 1rem; font-weight: 800; color: ${s.text};">${entry.title}</span>
+                <span style="font-size: 0.7rem; font-weight: 900; background: ${s.badge}; color: white; padding: 3px 10px; border-radius: 2rem; letter-spacing: 0.06em;">${s.label}</span>
+              </div>
+              <span style="font-size: 0.82rem; color: var(--gray-500); font-weight: 700; white-space: nowrap;">${entry.time}</span>
+            </div>
+            <div style="font-size: 0.92rem; color: ${s.text}; line-height: 1.55; font-weight: 600;">${entry.msg}</div>
+          </div>
+        `;
+        feed.appendChild(div);
+      });
+
+      // Update footer counters
+      const cc = document.getElementById('ai-log-critical-count');
+      const ac = document.getElementById('ai-log-action-count');
+      const sc = document.getElementById('ai-log-success-count');
+      if (cc) cc.textContent = critCount;
+      if (ac) ac.textContent = actionCount;
+      if (sc) sc.textContent = successCount;
+
+      safeCreateIcons();
+
+      // Auto-prepend a new entry every 12 seconds
+      setInterval(() => {
+        const live = [
+          { type: 'action',  icon: 'refresh-cw',    title: 'Auto-Optimization', msg: 'AI rescheduled 3 non-urgent consultations to reduce wait time in OPD.' },
+          { type: 'predict', icon: 'cloud-lightning',title: 'Load Spike',        msg: 'Lab processing queue predicted to exceed 60 mins in 30m. Staffing alert sent.' },
+          { type: 'success', icon: 'check-circle',   title: 'Resolved',          msg: 'Bed turnover in Ward C improved by 8% after housekeeping optimization.' },
+          { type: 'info',    icon: 'bell',           title: 'Shift Update',      msg: 'Night shift handover detected. AI re-evaluating resource allocation priorities.' }
+        ];
+        const newEntry = live[Math.floor(Math.random() * live.length)];
+        const s = AI_LOG_STYLES[newEntry.type];
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+        const div = document.createElement('div');
+        div.style.cssText = `
+          display: flex; gap: 1.25rem; padding: 1.25rem 1.5rem;
+          background: ${s.bg}; border: 1px solid ${s.border};
+          border-radius: 1.25rem; border-left: 5px solid ${s.badge};
+          animation: slideInLeft 0.4s ease-out;
+          transition: transform 0.2s, box-shadow 0.2s;
+          cursor: default;
+        `;
+        div.onmouseover = () => { div.style.transform = 'translateX(5px)'; div.style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)'; };
+        div.onmouseout  = () => { div.style.transform = ''; div.style.boxShadow = ''; };
+        div.innerHTML = `
+          <div style="width: 42px; height: 42px; background: ${s.badge}22; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;">
+            <i data-lucide="${newEntry.icon}" style="width: 20px; height: 20px; color: ${s.badge};"></i>
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="font-size: 1rem; font-weight: 800; color: ${s.text};">${newEntry.title}</span>
+                <span style="font-size: 0.7rem; font-weight: 900; background: ${s.badge}; color: white; padding: 3px 10px; border-radius: 2rem; letter-spacing: 0.06em;">${s.label}</span>
+              </div>
+              <span style="font-size: 0.82rem; color: var(--gray-500); font-weight: 700; white-space: nowrap;">${timeStr}</span>
+            </div>
+            <div style="font-size: 0.92rem; color: ${s.text}; line-height: 1.55; font-weight: 600;">${newEntry.msg}</div>
+          </div>
+        `;
+
+        const f = document.getElementById('ai-decision-feed');
+        if (f) { f.prepend(div); safeCreateIcons(); }
+      }, 12000);
+    }
+
+    function updateAIInsights(activeCount) {
+      // Refresh stream entries with live emergency count
+      startAIStream();
+    }
+
+    function renderAdminQueue(emergencies) {
+      const container = document.getElementById('adminQueueList');
+      if (!container) return;
+      const active = emergencies.filter(e => e.status !== 'COMPLETED');
+
+      if (active.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No active admissions.</p></div>';
+        return;
+      }
+
+      container.innerHTML = active.map((e, index) => `
+        <div class="queue-item ${index === 0 ? 'current' : ''} ${e.priority === 'CRITICAL' ? 'emergency' : ''}" onclick="showPatientDetails('${e._id}')">
+          <div class="queue-number">${index + 1}</div>
+          <div class="queue-info">
+            <div style="display:flex; justify-content:space-between">
+               <div class="queue-name">${e.patientId?.name || 'Unknown'}</div>
+               <div style="font-size:0.7rem; color:var(--primary)">${e.priority}</div>
+            </div>
+            <div class="queue-time">${e.status} • Bed: ${e.assignedBed?.code || 'Triage'}</div>
+          </div>
+        </div>
+      `).join('');
+      safeCreateIcons();
+    }
+
+    function renderDoctorDirectory() {
+      const container = document.getElementById('adminDoctorGrid');
+      if (!container) return;
+
+      const doctors = [
+        { name: 'Dr. Sanjay Gupta', dept: 'Cardiology', qual: 'MD, DM', status: 'On Duty', efficiency: 98, cases: 14, img: 'SG' },
+        { name: 'Dr. Meera Nair', dept: 'Neurology', qual: 'MBBS, MD', status: 'In Surgery', efficiency: 95, cases: 8, img: 'MN' },
+        { name: 'Dr. Arjun Varma', dept: 'Orthopedics', qual: 'MS, MCh', status: 'On Duty', efficiency: 92, cases: 11, img: 'AV' },
+        { name: 'Dr. Sarah Smith', dept: 'Emergency', qual: 'MD (Internal)', status: 'On Duty', efficiency: 99, cases: 22, img: 'SS' },
+        { name: 'Dr. Priya Sharma', dept: 'Pediatrics', qual: 'MBBS, DCH', status: 'On Break', efficiency: 94, cases: 15, img: 'PS' },
+        { name: 'Dr. Vikram Seth', dept: 'General Surgery', qual: 'MS, FMAS', status: 'In Surgery', efficiency: 91, cases: 5, img: 'VS' }
+      ];
+
+      container.innerHTML = doctors.map(doc => `
+        <div class="dashboard-card" style="padding: 1.25rem;">
+          <div style="display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1rem;">
+            <div style="width: 54px; height: 54px; background: var(--gray-100); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); font-size: 1.2rem;">
+              ${doc.img}
+            </div>
+            <div style="flex: 1;">
+              <h4 style="margin: 0; font-size: 1rem;">${doc.name}</h4>
+              <p style="font-size: 0.75rem; color: var(--gray-500); margin: 2px 0;">${doc.dept} â€¢ ${doc.qual}</p>
+              <span class="badge ${doc.status === 'On Duty' ? 'badge-success' : (doc.status === 'In Surgery' ? 'badge-danger' : 'badge-warning')}" style="font-size: 0.65rem;">
+                ${doc.status}
+              </span>
+            </div>
+          </div>
+          
+          <div style="background: var(--gray-50); padding: 0.75rem; border-radius: 10px; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.5rem;">
+              <span style="color: var(--gray-500);">AI Efficiency Score</span>
+              <strong style="color: var(--primary);">${doc.efficiency}%</strong>
+            </div>
+            <div style="background: var(--gray-200); height: 5px; border-radius: 3px; overflow: hidden;">
+              <div style="width: ${doc.efficiency}%; height: 100%; background: var(--primary);"></div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 0.75rem; color: var(--gray-500);">
+              <i data-lucide="clipboard-list" style="width: 12px; height: 12px; vertical-align: middle;"></i>
+              ${doc.cases} active cases
+            </div>
+            <button class="btn btn-sm btn-ghost">View Profile</button>
+          </div>
+        </div>
+      `).join('');
+      safeCreateIcons();
+    }
+
+    function startLiveSimulation() {
+      setInterval(() => {
+        // Fluctuate Revenue
+        const revElem = document.querySelector('#analyticsSection .stat-card:nth-child(1) .stat-value');
+        if (revElem) {
+          let val = parseFloat(revElem.textContent.replace('₹', '').replace('L', ''));
+          if (isNaN(val)) val = 38.60;
+          val += (Math.random() - 0.4) * 0.1;
+          revElem.textContent = `₹${val.toFixed(2)}L`;
+        }
+        
+        // Fluctuate Power
+        const powerElem = document.querySelector('#facilitySection .dashboard-card:nth-child(1) .stat-value, #facilitySection .dashboard-card:nth-child(1) div[style*="font-size:1.75rem"]');
+        if (powerElem) {
+          let val = parseInt(powerElem.textContent);
+          val += Math.floor(Math.random() * 3) - 1;
+          if (val > 90) val = 85; if (val < 40) val = 50;
+          powerElem.textContent = `${val}%`;
+        }
+
+        // Fluctuate Heatmap (Dedicated Section)
+        document.querySelectorAll('#capacityHeatmapGrid .dashboard-card').forEach(card => {
+           const valElem = card.querySelector('div[style*="font-size: 2.25rem"]');
+           if (valElem) {
+              let val = parseInt(valElem.textContent);
+              val += Math.floor(Math.random() * 3) - 1;
+              if (val > 98) val = 95; if (val < 30) val = 40;
+              valElem.textContent = `${val}%`;
+              const progress = card.querySelector('div[style*="height: 10px"] div');
+              if (progress) progress.style.width = `${val}%`;
+           }
+        });
+
+        // Fluctuate Mini Heatmap (Overview)
+        ['icu', 'er', 'opd', 'surg', 'lab', 'gen'].forEach(id => {
+           const el = document.getElementById(`mini-${id}-val`);
+           if (el) {
+              let val = parseInt(el.textContent);
+              val += Math.floor(Math.random() * 3) - 1;
+              if (val > 98) val = 95; if (val < 10) val = 20;
+              el.textContent = `${val}%`;
+              // Sync the progress bar
+              const progress = el.parentElement.querySelector('div[style*="height: 6px"] div');
+              if (progress) progress.style.width = `${val}%`;
+           }
+        });
+
+        // --- NEW: Bed Occupancy Simulation ---
+        const bedCards = document.querySelectorAll('#bedsSection [onclick*="showBedDetails"]');
+        if (bedCards.length > 0) {
+           // Randomly toggle 1-2 beds
+           const luckyBed = bedCards[Math.floor(Math.random() * bedCards.length)];
+           const icon = luckyBed.querySelector('i');
+           const span = luckyBed.querySelector('span');
+           const isNowOccupied = Math.random() > 0.5;
+           
+           let typeColor = isNowOccupied ? '#3b82f6' : '#10b981';
+           if (luckyBed.closest('#wardB')) typeColor = isNowOccupied ? '#ef4444' : '#10b981';
+           if (luckyBed.closest('#wardC')) typeColor = isNowOccupied ? '#8b5cf6' : '#10b981';
+
+           luckyBed.style.background = isNowOccupied ? (typeColor + '1a') : 'rgba(16, 185, 129, 0.1)';
+           luckyBed.style.borderColor = typeColor;
+           if (icon) icon.style.color = typeColor;
+           if (span) span.style.color = typeColor;
+           
+           // Toggle pulse beacon
+           let beacon = luckyBed.querySelector('div[style*="animation: pulse"]');
+           if (isNowOccupied && !beacon) {
+             const div = document.createElement('div');
+             div.style.cssText = `position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background: ${typeColor}; border-radius: 50%; animation: pulse 2s infinite;`;
+             luckyBed.appendChild(div);
+           } else if (!isNowOccupied && beacon) {
+             beacon.remove();
+           }
+
+           // Update Wards capacity text/bars
+           ['wardA', 'wardB', 'wardC'].forEach(id => {
+              const ward = document.getElementById(id);
+              if (!ward) return;
+              const total = ward.children.length;
+              const occ = ward.querySelectorAll('div[style*="animation: pulse"]').length;
+              const pct = Math.round((occ / total) * 100);
+              
+              const capText = document.getElementById('capText-' + id);
+              const capBar = document.getElementById('capBar-' + id);
+              const badge = document.getElementById('badge-' + id);
+              
+              if (capText) capText.textContent = `Occupancy: ${occ}/${total} (${pct}%)`;
+              if (document.getElementById('count-vacant-' + id)) document.getElementById('count-vacant-' + id).textContent = total - occ;
+              if (document.getElementById('count-occ-' + id)) document.getElementById('count-occ-' + id).textContent = occ;
+              
+              if (capBar) capBar.style.width = pct + '%';
+              if (badge) badge.textContent = `${total - occ} Vacant`;
+           });
+        }
+      }, 3000);
+    }
+
+
+
+    function renderInventory() {
+      const container = document.getElementById('inventory-list');
+      if (!container) return;
+      const items = [
+        { name: 'Medical Oxygen', level: 82, trend: 'stable' },
+        { name: 'Blood Units (O-)', level: 14, trend: 'critical' },
+        { name: 'Surgical Kits', level: 45, trend: 'low' }
+      ];
+      
+      container.innerHTML = items.map(item => `
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8125rem;">
+            <strong>${item.name}</strong>
+            <span style="color: ${item.level < 20 ? '#ef4444' : '#64748b'}; font-weight: 700;">${item.level}%</span>
+          </div>
+          <div style="height: 6px; background: var(--gray-100); border-radius: 3px; overflow: hidden;">
+            <div style="width: ${item.level}%; height: 100%; background: ${item.level < 20 ? '#ef4444' : '#3b82f6'};"></div>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--gray-400);">AI Forecast: ${item.trend === 'critical' ? 'Refill within 4h' : 'Stable for 48h'}</div>
+        </div>
+      `).join('');
+    }
+
+
+    let patientFlowChart = null;
+
+    function updateStats(data) {
+      const activeCases = data.emergencies.filter(e => e.status !== 'COMPLETED');
+      const activeCount = activeCases.length;
+      const totalBeds = 45;
+      const occupiedBeds = activeCases.filter(e => e.assignedBed).length;
+      
+      // Dynamic AI Efficiency: Fluctuates between 96-99% based on load
+      const baseEfficiency = 99.5;
+      const loadPenalty = activeCount * 0.2;
+      const currentEfficiency = (baseEfficiency - loadPenalty).toFixed(1);
+
+      // Dynamic Wait Time: ~8 mins base + 3 mins per waiting patient
+      const currentWaitTime = 8 + (activeCount * 3);
+      
+      const elEmergencies = document.getElementById('stat-emergencies');
+      const elOccupancy = document.getElementById('stat-occupancy');
+      const elBeds = document.getElementById('stat-beds');
+      const elWait = document.querySelector('.stat-card.delay-200 .stat-value');
+      
+      if (elEmergencies) elEmergencies.textContent = activeCount;
+      if (elOccupancy) elOccupancy.textContent = currentEfficiency + '%'; 
+      if (elBeds) elBeds.textContent = `${totalBeds - occupiedBeds}/${totalBeds}`;
+      if (elWait) elWait.textContent = currentWaitTime + 'm';
+      
+      const emergencyStatus = document.getElementById('emergency-status');
+      if (emergencyStatus) {
+        if (activeCount > 0) {
+          emergencyStatus.textContent = `${activeCount} active cases`;
+          emergencyStatus.className = 'stat-change negative';
+        } else {
+          emergencyStatus.textContent = 'All Clear';
+          emergencyStatus.className = 'stat-change positive';
+        }
+      }
+
+      // Dynamic AI Insights
+      updateAIInsights(activeCount);
+    }
+
+    function updateAIInsights(activeCount) {
+      const box = document.querySelector('.ai-insight-box');
+      if (!box) return;
+
+      let html = '';
+      if (activeCount > 3) {
+        html = `
+          <div class="ai-insight-item">
+            <div class="ai-icon"><i data-lucide="alert-triangle"></i></div>
+            <div class="ai-text"><strong>High Load Detected:</strong> AI auto-escalating triage priorities for ${activeCount} patients.</div>
+          </div>
+        `;
+      } else {
+        html = `
+          <div class="ai-insight-item">
+            <div class="ai-icon success"><i data-lucide="check-circle"></i></div>
+            <div class="ai-text"><strong>Optimal Flow:</strong> Patient throughput is 12% faster than predicted.</div>
+          </div>
+        `;
+      }
+      
+      html += `
+        <div class="ai-insight-item">
+          <div class="ai-icon warning"><i data-lucide="info"></i></div>
+          <div class="ai-text"><strong>Resource Note:</strong> Predictive models suggest oxygen refill in 18 hours.</div>
+        </div>
+      `;
+      box.innerHTML = html;
+      safeCreateIcons();
+    }
+
+    function renderBedGrids(beds) {
+      const wards = ['General', 'ICU', 'Pediatric'];
+      const containers = ['wardA', 'wardB', 'wardC'];
+      
+      containers.forEach((id, i) => {
+        const container = document.getElementById(id);
+        const badge = document.getElementById('badge-' + id);
+        const capBar = document.getElementById('capBar-' + id);
+        const capText = document.getElementById('capText-' + id);
+        if (!container) return;
+        
+        const wardBeds = beds.filter(b => b.ward === wards[i]);
+        const occupiedCount = wardBeds.filter(b => b.isOccupied).length;
+        const total = wardBeds.length;
+        const available = total - occupiedCount;
+        const occPercent = (occupiedCount / total) * 100;
+
+        if (badge) badge.textContent = `${available} Vacant`;
+        if (capText) capText.textContent = `Occupancy: ${occupiedCount}/${total} (${occPercent.toFixed(0)}%)`;
+        if (document.getElementById('count-vacant-' + id)) document.getElementById('count-vacant-' + id).textContent = available;
+        if (document.getElementById('count-occ-' + id)) document.getElementById('count-occ-' + id).textContent = occupiedCount;
+        
+        if (capBar) {
+          capBar.style.width = occPercent + '%';
+          capBar.style.background = occPercent > 85 ? '#ef4444' : (occPercent > 60 ? '#f59e0b' : (id === 'wardB' ? '#ef4444' : '#3b82f6'));
+        }
+
+        container.innerHTML = wardBeds.map(bed => {
+          let typeIcon = 'bed';
+          let typeColor = bed.isOccupied ? '#3b82f6' : '#10b981';
+          let typeLabel = 'Standard';
+
+          if (bed.ward === 'ICU') {
+             typeIcon = 'heart-pulse';
+             typeColor = bed.isOccupied ? '#ef4444' : '#10b981';
+             typeLabel = 'Critical';
+          } else if (bed.code.includes('P')) {
+             typeIcon = 'star';
+             typeColor = bed.isOccupied ? '#8b5cf6' : '#10b981';
+             typeLabel = 'Private';
+          }
+
+          const bgColor = bed.isOccupied ? (typeColor + '1a') : 'rgba(16, 185, 129, 0.1)';
+          const hasOxygen = Math.random() > 0.4;
+          const hasVentilator = bed.ward === 'ICU' && Math.random() > 0.5;
+          
+          return `
+            <div onclick="showBedDetails('${bed.code}', '${bed.ward}', ${bed.isOccupied})" 
+                 style="aspect-ratio: 1; border-radius: 12px; background: ${bgColor}; border: 1.5px solid ${typeColor}; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; position: relative; padding: 0.5rem;"
+                 title="${typeLabel} Bed: ${bed.code}">
+              ${bed.isOccupied ? `<div style="position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; background: ${typeColor}; border-radius: 50%; animation: pulse 2s infinite;"></div>` : ''}
+              
+              <div style="position: absolute; bottom: 6px; left: 6px; display: flex; gap: 2px;">
+                ${hasOxygen ? `<i data-lucide="wind" style="width: 8px; height: 8px; color: #3b82f6;" title="Oxygen Port Active"></i>` : ''}
+                ${hasVentilator ? `<i data-lucide="zap" style="width: 8px; height: 8px; color: #ef4444;" title="Ventilator Engaged"></i>` : ''}
+              </div>
+
+              <i data-lucide="${typeIcon}" style="width: 24px; height: 24px; color: ${typeColor}; margin-bottom: 4px;"></i>
+              <span style="font-size: 0.85rem; font-weight: 800; color: ${typeColor}">${bed.code}</span>
+            </div>
+          `;
+        }).join('');
+      });
+      safeCreateIcons();
+    }
+
+
+    function renderDoctorsList(doctors) {
+      const container = document.getElementById('adminDoctorGrid') || document.querySelector('.doctor-grid');
+      if (!container) return;
+      const doctorsOnly = doctors.filter(d => d.role === 'doctor');
+      
+      container.innerHTML = doctorsOnly.map((doc, idx) => {
+        // Simulated metrics for premium feel
+        const performance = 92 + Math.floor(Math.random() * 7);
+        const patients = 3 + Math.floor(Math.random() * 5);
+        const status = idx % 5 === 0 ? 'surgery' : (idx % 7 === 0 ? 'break' : 'duty');
+        const statusLabel = status === 'surgery' ? 'In Surgery' : (status === 'break' ? 'On Break' : 'On Duty');
+        const statusDot = status === 'surgery' ? '#ef4444' : (status === 'break' ? '#f59e0b' : '#10b981');
+        
+        return `
+          <div class="doctor-card animate-fade-in-up" style="padding: 1.5rem; position: relative; overflow: hidden; transition: all 0.4s ease; border-radius: 1.75rem;">
+            <!-- Background Decoration -->
+            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: var(--primary); opacity: 0.03; border-radius: 50%;"></div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+              <div style="display: flex; gap: 1rem; align-items: center;">
+                <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--gray-50); border: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: center; position: relative;">
+                  <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;">
+                    ${doc.name.split(' ').map(n => n.replace('Dr.', '').trim()[0]).join('')}
+                  </div>
+                  <div style="position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; background: ${statusDot}; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px ${statusDot}44; animation: pulse 2s infinite;"></div>
+                </div>
+                <div>
+                  <h4 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--gray-900);">${doc.name}</h4>
+                  <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); background: #eff6ff; padding: 2px 8px; border-radius: 6px;">${doc.specialization || 'Clinical Specialist'}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 800; text-transform: uppercase;">Performance</div>
+                <div style="font-size: 1.25rem; font-weight: 900; color: #10b981;">${performance}%</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+               <div style="background: var(--gray-50); padding: 0.75rem; border-radius: 1rem; border: 1px solid var(--gray-100);">
+                  <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Active Load</div>
+                  <div style="font-size: 1.1rem; font-weight: 800; color: var(--gray-800);">${patients} Patients</div>
+               </div>
+               <div style="background: var(--gray-50); padding: 0.75rem; border-radius: 1rem; border: 1px solid var(--gray-100);">
+                  <div style="font-size: 0.65rem; color: var(--gray-400); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Current State</div>
+                  <div style="font-size: 0.9rem; font-weight: 800; color: ${statusDot};">${statusLabel}</div>
+               </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--gray-50); padding-top: 1.25rem;">
+               <div style="display: flex; justify-content: space-between; align-items: center;">
+                 <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <i data-lucide="award" style="width: 14px; color: #f59e0b;"></i>
+                    <span style="font-size: 0.8rem; color: var(--gray-600); font-weight: 600;">Shift Efficiency: High</span>
+                 </div>
+                 <button class="btn btn-sm btn-ghost" style="padding: 0.25rem 0.5rem; color: var(--primary); font-weight: 800; font-size: 0.7rem;">VIEW LOGS</button>
+               </div>
+               
+               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+                 <button class="btn btn-sm btn-ghost" style="font-size: 0.75rem; height: 36px; background: white; border: 1px solid var(--gray-100);">Manage</button>
+                 <button class="btn btn-sm btn-primary" style="font-size: 0.75rem; height: 36px;">Assign</button>
+               </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      safeCreateIcons();
+    }
+
+    document.getElementById('registrySearch')?.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      const rows = document.querySelectorAll('#registryBody tr');
+      rows.forEach(row => {
+        const name = row.querySelector('span').textContent.toLowerCase();
+        row.style.display = name.includes(term) ? 'table-row' : 'none';
+      });
+    });
+
+    function renderPatientRegistry() {
+      const body = document.getElementById('registryBody');
+      if (!body) return;
+
+      const patients = [
+        { name: 'Ramesh Gupta', age: 45, gender: 'M', symptom: 'Chronic Hypertension', date: '2h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Kavita Reddy', age: 32, gender: 'F', symptom: 'Post-Op Recovery', date: '5h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Deepak Verma', age: 28, gender: 'M', symptom: 'Dengue Fever', date: '1d ago', status: 'Critical', color: '#ef4444' },
+        { name: 'Suman Lata', age: 54, gender: 'F', symptom: 'Type 2 Diabetes', date: '2d ago', status: 'Stable', color: '#10b981' },
+        { name: 'Anil Kulkarni', age: 62, gender: 'M', symptom: 'Chest Pain', date: '3h ago', status: 'Critical', color: '#ef4444' },
+        { name: 'Sunita Pillai', age: 41, gender: 'F', symptom: 'Severe Abdomen Pain', date: '6h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Sanjay Joshi', age: 49, gender: 'M', symptom: 'Shoulder Post-Op', date: '1d ago', status: 'Stable', color: '#10b981' },
+        { name: 'Geeta Bansal', age: 25, gender: 'F', symptom: 'Viral Fever', date: '4h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Rahul Saxena', age: 58, gender: 'M', symptom: 'Chronic Bronchitis', date: '2d ago', status: 'Stable', color: '#10b981' },
+        { name: 'Meena Iyer', age: 34, gender: 'F', symptom: 'Respiratory Distress', date: '1h ago', status: 'Critical', color: '#ef4444' },
+        { name: 'Harish Rao', age: 36, gender: 'M', symptom: 'Ligament Tear', date: '4h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Archana Shenoy', age: 41, gender: 'F', symptom: 'Pregnancy Follow-up', date: '1d ago', status: 'Stable', color: '#10b981' },
+        { name: 'Vinay Patil', age: 56, gender: 'M', symptom: 'Lower Back Pain', date: '5h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Pooja Hegde', age: 29, gender: 'F', symptom: 'Post-Op Care', date: '3h ago', status: 'Stable', color: '#10b981' },
+        { name: 'Sameer Deshmukh', age: 47, gender: 'M', symptom: 'General Weakness', date: '2h ago', status: 'Stable', color: '#10b981' }
+      ];
+
+      body.innerHTML = patients.map(p => `
+        <tr class="registry-row" data-status="${p.status}" style="border-bottom: 1px solid var(--gray-50); transition: all 0.2s;">
+          <td style="padding: 1.25rem 1.5rem;">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: ${p.color}1a; color: ${p.color}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; border: 1px solid ${p.color}33;">
+                ${p.name.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div>
+                <div style="font-weight: 700; color: var(--gray-900); font-size: 0.95rem;">${p.name}</div>
+                <div style="font-size: 0.7rem; color: var(--gray-400); font-weight: 600;">PAT-ID: ${Math.floor(10000 + Math.random() * 90000)}</div>
+              </div>
+            </div>
+          </td>
+          <td style="padding: 1.25rem 1.5rem;">
+            <div style="font-weight: 600; color: var(--gray-700); font-size: 0.85rem;">${p.age} Yrs / ${p.gender}</div>
+          </td>
+          <td style="padding: 1.25rem 1.5rem;">
+            <span class="badge" style="background: var(--gray-50); color: var(--gray-600); border: 1px solid var(--gray-200); font-size: 0.7rem; font-weight: 700; border-radius: 6px;">
+              ${p.symptom}
+            </span>
+          </td>
+          <td style="padding: 1.25rem 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; color: ${p.color}; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.02em;">
+               <div style="width: 8px; height: 8px; border-radius: 50%; background: ${p.color}; box-shadow: 0 0 8px ${p.color}; animation: pulse 2s infinite;"></div>
+               ${p.status}
+            </div>
+          </td>
+          <td style="padding: 1.25rem 1.5rem;">
+            <div style="font-size: 0.8rem; color: var(--gray-500); font-weight: 500;">${p.date}</div>
+          </td>
+          <td style="padding: 1.25rem 1.5rem; text-align: center;">
+            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+              <button class="btn btn-sm btn-ghost" title="Clinical History" onclick="showToast('info', 'Clinical Records', 'Retrieving history for ${p.name}')"><i data-lucide="file-text" style="width: 14px; height: 14px;"></i></button>
+              <button class="btn btn-sm btn-ghost" title="Vital Signs"><i data-lucide="activity" style="width: 14px; height: 14px;"></i></button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      safeCreateIcons();
+
+      // Search Handler
+      const searchInput = document.getElementById('registrySearch');
+      if (searchInput) {
+        searchInput.oninput = (e) => {
+          const val = e.target.value.toLowerCase();
+          document.querySelectorAll('.registry-row').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(val) ? '' : 'none';
+          });
+        };
+      }
+    }
+
+
+    async function showPatientDetails(id) {
+      const modal = document.getElementById('detailModal');
+      const body = document.getElementById('modalBody');
+      const title = document.getElementById('modalTitle');
+      
+      title.innerHTML = '<i data-lucide="user"></i> Patient Clinical Record';
+      body.innerHTML = '<div class="text-center"><i data-lucide="loader-2" class="animate-spin"></i> Loading...</div>';
+      modal.classList.add('active');
+      safeCreateIcons();
+
+      try {
+        const [dashboard, patientsRes] = await Promise.all([
+          SHMS_API.getDashboardState(),
+          SHMS_API.getPatients()
+        ]);
+        
+        const patient = dashboard.emergencies.find(e => e._id === id);
+        
+        if (patient) {
+          body.innerHTML = `
+            <div class="detail-row"><span class="detail-label">Patient Name</span><span class="detail-value">${patient.patientId?.name || 'N/A'}</span></div>
+            <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${patient.status}</span></div>
+            <div class="detail-row"><span class="detail-label">Priority</span><span class="detail-value">${patient.priority}</span></div>
+            <div class="detail-row"><span class="detail-label">Assigned Bed</span><span class="detail-value">${patient.assignedBed?.code || 'Triage'}</span></div>
+          `;
+        } else {
+          const regPatient = patientsRes.patients.find(p => p._id === id);
+          if (regPatient) {
+            body.innerHTML = `
+              <div class="detail-row"><span class="detail-label">Patient Name</span><span class="detail-value">${regPatient.name}</span></div>
+              <div class="detail-row"><span class="detail-label">Condition</span><span class="detail-value">${regPatient.primaryCondition}</span></div>
+              <div class="detail-row"><span class="detail-label">Age/Gender</span><span class="detail-value">${regPatient.age} / ${regPatient.gender}</span></div>
+              <div class="detail-row"><span class="detail-label">Registry Status</span><span class="detail-value">Stable</span></div>
+            `;
+          }
+        }
+      } catch (e) {
+        body.innerHTML = '<p class="text-danger">Failed to load details.</p>';
+      }
+      safeCreateIcons();
+    }
+
+    function showBedDetails(code, ward, occupied) {
+      const modal = document.getElementById('detailModal');
+      const body = document.getElementById('modalBody');
+      const title = document.getElementById('modalTitle');
+      
+      title.innerHTML = '<i data-lucide="bed"></i> Bed Information';
+      body.innerHTML = `
+        <div class="detail-row"><span class="detail-label">Bed Identifier</span><span class="detail-value">${code}</span></div>
+        <div class="detail-row"><span class="detail-label">Ward / Unit</span><span class="detail-value">${ward}</span></div>
+        <div class="detail-row"><span class="detail-label">Current Status</span><span class="detail-value">${occupied ? 'Occupied' : 'Vacant'}</span></div>
+        <div class="detail-row"><span class="detail-label">Maintenance</span><span class="detail-value">Next Check: Tomorrow</span></div>
+      `;
+      modal.classList.add('active');
+      safeCreateIcons();
+    }
+
+    function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+
+    async function triggerEmergency(type) {
+      const banner = document.getElementById('active-crisis-banner');
+      const name = document.getElementById('active-code-name');
+      const panel = document.getElementById('crisis-protocol-panel');
+      const title = document.getElementById('protocol-title');
+      const steps = document.getElementById('protocol-steps');
+
+      try {
+        await SHMS_API.triggerEmergency({
+          deviceId: 'admin-console',
+          priority: 'CRITICAL',
+          scenarioId: `manual-${type}`
+        });
+        
+        showToast('error', 'Emergency Activated', `${type.toUpperCase()} protocol is now live.`);
+        
+        // UI Crisis Mode
+        banner.style.display = 'block';
+        name.textContent = type.toUpperCase();
+        panel.style.display = 'block';
+        title.textContent = type;
+        
+        const checklists = {
+          'Code Blue': ['Dispatch Crash Cart', 'Alert Cardiology Team', 'Clear OT 1', 'Notify Nursing Station B'],
+          'Fire Alert': ['Activate Sprinklers', 'Unlock All Exits', 'Announce Evacuation', 'Notify Fire Dept'],
+          'Security Threat': ['Lockdown All Wings', 'Disable Elevators', 'Contact Local Police', 'Mute Non-Essential Alarms'],
+          'Infant Abduction': ['Seal All Exits', 'Review CCTV Ward P', 'Alert Security Team', 'Notify Local Authorities'],
+          'External Disaster': ['Clear ER Bays', 'Recall Off-Duty Staff', 'Prep Trauma Units', 'Notify Blood Bank'],
+          'Trauma Response': ['Assign Triage MD', 'Clear ICU Bed 4', 'Prep O-Neg Blood', 'Alert General Surgery']
+        };
+
+        const list = checklists[type] || ['Notify Administration', 'Alert Security', 'Clear Corridors', 'Deploy Emergency Team'];
+        steps.innerHTML = list.map(s => `
+          <div style="display:flex; gap:0.75rem; align-items:center; background:var(--gray-50); padding:1rem; border-radius:10px; border:1px solid var(--gray-100)">
+            <input type="checkbox" checked style="width:18px; height:18px; accent-color:#ef4444">
+            <span style="font-size:0.85rem; font-weight:600; color:var(--gray-700)">${s}</span>
+          </div>
+        `).join('');
+        
+        // AI Decision Log Entry
+        const feed = document.getElementById('ai-decision-feed');
+        if (feed) {
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex; gap:0.75rem; margin-bottom:1rem; align-items:flex-start; color:#ef4444; font-weight:700;';
+          div.innerHTML = `
+            <div style="font-size:0.7rem; color:var(--gray-400); margin-top:2px">NOW</div>
+            <i data-lucide="alert-triangle" style="width:12px; height:12px; margin-top:4px"></i>
+            <div style="font-size:0.8rem">SYSTEM LOCKDOWN: ${type} protocol initiated by Admin.</div>
+          `;
+          feed.prepend(div);
+        }
+        
+        safeCreateIcons();
+        window.scrollTo({ top: document.getElementById('emergencySection').offsetTop - 20, behavior: 'smooth' });
+
+      } catch (err) {
+        showToast('error', 'Trigger Failed', err.message);
+      }
+    }
+
+    function cancelCrisis() {
+      document.getElementById('active-crisis-banner').style.display = 'none';
+      document.getElementById('crisis-protocol-panel').style.display = 'none';
+      showToast('success', 'Crisis Resolved', 'Hospital returning to normal operations.');
+    }
+
+    function initializeCharts() {
+      const canvas = document.getElementById('performanceChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (patientFlowChart) patientFlowChart.destroy();
+      patientFlowChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+          datasets: [
+            { label: 'Revenue (₹K)', data: [120, 190, 150, 220, 180, 250, 210], backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Efficiency (%)', data: [85, 92, 88, 95, 90, 98, 94], type: 'line', borderColor: '#10b981', tension: 0.4, yAxisID: 'y1' }
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y1: { position: 'right', grid: { drawOnChartArea: false } } } }
+      });
+    }
+
+    function initSectionCharts(sectionId) {
+      if (sectionId === 'inventory') {
+        const c = document.getElementById('inventoryChart'); if (!c || c._chart) return;
+        c._chart = new Chart(c, { type: 'bar', data: { labels: ['Paracetamol', 'Blood O-', 'Insulin', 'Saline', 'Gloves', 'N95'], datasets: [{ label: 'Available', data: [430, 6, 95, 850, 1800, 2200], backgroundColor: ['#ef4444','#ef4444','#f59e0b','#10b981','#10b981','#3b82f6'], borderRadius: 6 }, { label: 'Needed (30d)', data: [2500, 50, 250, 600, 2000, 1500], backgroundColor: 'rgba(59,130,246,0.15)', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } } });
+      }
+      if (sectionId === 'analytics') {
+        const r = document.getElementById('revenueChart'); if (!r || r._chart) return;
+        r._chart = new Chart(r, { 
+          type: 'bar', 
+          data: { 
+            labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'], 
+            datasets: [
+              { 
+                label: 'Revenue (₹L)', 
+                data: [28, 31, 29, 35, 33, 38.6, 40], 
+                backgroundColor: '#6366f1', 
+                borderRadius: 8,
+                borderWidth: 0,
+                barThickness: 20
+              }, 
+              { 
+                label: 'Costs (₹L)', 
+                data: [18, 20, 19, 21, 20, 22, 23], 
+                backgroundColor: '#fb7185', 
+                borderRadius: 8,
+                borderWidth: 0,
+                barThickness: 20
+              }
+            ] 
+          }, 
+          options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  usePointStyle: true,
+                  padding: 20,
+                  font: { family: 'Inter', size: 12, weight: '700' }
+                }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] } }
+            }
+          } 
+        });
+        const d = document.getElementById('deptRevenueChart'); if (!d || d._chart) return;
+        d._chart = new Chart(d, { type: 'doughnut', data: { labels: ['OPD', 'IPD', 'Surgery', 'Lab', 'Radiology', 'Pharmacy'], datasets: [{ data: [28, 22, 18, 12, 10, 10], backgroundColor: ['#3b82f6','#10b981','#f59e0b','#6366f1','#ec4899','#ef4444'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
+      }
+      if (sectionId === 'facility') {
+        const p = document.getElementById('powerChart'); if (!p || p._chart) return;
+        p._chart = new Chart(p, { type: 'line', data: { labels: ['00','03','06','09','12','15','18','21','Now'], datasets: [{ label: 'kWh', data: [210, 180, 195, 320, 410, 390, 360, 300, 280], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false } });
+      }
+    }
+
+    function updateCharts(data) {
+      if (!patientFlowChart) return;
+      const active = data.emergencies.filter(e => e.status !== 'COMPLETED').length;
+      patientFlowChart.data.datasets[0].data[6] = active + 5; // Add base load
+      patientFlowChart.update();
+    }
+
+    document.querySelectorAll('.sidebar-nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = link.dataset.section;
+        if (section) {
+          document.querySelectorAll('.dashboard-section').forEach(s => s.classList.remove('active'));
+          document.getElementById(section + 'Section').classList.add('active');
+          document.querySelectorAll('.sidebar-nav-link').forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+          initSectionCharts(section);
+          if (section === 'beds') initBedCharts();
+          if (section === 'capacity') renderCapacityMap();
+        }
+      });
+    });
+
+    function initBedCharts() {
+      const c = document.getElementById('bedTrendChart');
+      if (!c || c._chart) return;
+      c._chart = new Chart(c, {
+        type: 'line',
+        data: {
+          labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', 'Now', '+4h', '+8h'],
+          datasets: [{
+            label: 'Actual Occupancy',
+            data: [32, 28, 35, 42, 38, 40, 39],
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+            fill: true,
+            tension: 0.4
+          }, {
+            label: 'AI Predicted Load',
+            data: [null, null, null, null, null, null, 39, 44, 48],
+            borderColor: '#fb7185',
+            borderDash: [5, 5],
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: false, min: 20 } }
+        }
+      });
+    }
+
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('active');
+    });
+
+    function renderCapacityMap() {
+      const grid = document.getElementById('capacityHeatmapGrid');
+      const feed = document.getElementById('logisticsFeed');
+      if (!grid || !feed) return;
+
+      const units = [
+        { name: 'ICU Unit', load: 94, beds: '1/12', staff: '1:1', wait: 'Immediate', trend: 'rising', color: '#ef4444' },
+        { name: 'Emergency / ER', load: 86, beds: '3/25', staff: '1:4', wait: '14m', trend: 'rising', color: '#f59e0b' },
+        { name: 'General Ward', load: 68, beds: '18/60', staff: '1:8', wait: '35m', trend: 'stable', color: '#6366f1' },
+        { name: 'OT / Surgical', load: 42, beds: '5/8', staff: '1:2', wait: '8m', trend: 'falling', color: '#10b981' },
+        { name: 'OPD Clinics', load: 81, beds: 'N/A', staff: '1:12', wait: '22m', trend: 'rising', color: '#f59e0b' },
+        { name: 'Diagnostics Lab', load: 55, beds: 'N/A', staff: '1:15', wait: '15m', trend: 'stable', color: '#10b981' }
+      ];
+
+      grid.innerHTML = units.map(u => `
+        <div class="dashboard-card" style="padding: 1.75rem; position: relative; overflow: hidden; border-left: 5px solid ${u.color}; transition: all 0.3s; transform: translateY(0);" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+           <div style="position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: ${u.color}; opacity: 0.04; border-radius: 0 0 0 100%;"></div>
+           <div style="display: flex; justify-content: space-between; margin-bottom: 1.25rem; align-items: flex-start;">
+              <div>
+                 <h4 style="margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--gray-900);">${u.name}</h4>
+                 <div style="font-size: 0.9rem; color: var(--gray-500); font-weight: 700; margin-top: 2px;">Resource Status: ${u.load > 90 ? 'CRITICAL' : (u.load > 75 ? 'HIGH LOAD' : 'OPTIMAL')}</div>
+              </div>
+              <div style="font-size: 2.25rem; font-weight: 900; color: ${u.color}; letter-spacing: -1px;">${u.load}%</div>
+           </div>
+           
+           <div style="background: var(--gray-100); border-radius: 12px; height: 10px; margin-bottom: 2rem; overflow: hidden; border: 1px solid var(--gray-200);">
+              <div style="width: ${u.load}%; height: 100%; background: ${u.color}; border-radius: 5px; box-shadow: 0 0 10px ${u.color}44;"></div>
+           </div>
+
+           <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+              <div style="background: var(--gray-50); padding: 1rem; border-radius: 1rem; border: 1px solid var(--gray-100);">
+                 <div style="font-size: 0.7rem; color: var(--gray-400); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Available Capacity</div>
+                 <div style="font-size: 1.15rem; font-weight: 800; color: var(--gray-800);">${u.beds}</div>
+              </div>
+              <div style="background: var(--gray-50); padding: 1rem; border-radius: 1rem; border: 1px solid var(--gray-100);">
+                 <div style="font-size: 0.7rem; color: var(--gray-400); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Live Wait Time</div>
+                 <div style="font-size: 1.15rem; font-weight: 800; color: var(--gray-800);">${u.wait}</div>
+              </div>
+           </div>
+
+           <div style="margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--gray-50); display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: var(--gray-600); font-weight: 700;">
+                 <i data-lucide="users" style="width: 16px; color: var(--primary);"></i> Ratio: ${u.staff}
+              </div>
+              <div style="color: ${u.trend === 'rising' ? '#ef4444' : (u.trend === 'falling' ? '#10b981' : '#6366f1')}; display: flex; align-items: center; gap: 4px; font-weight: 800; font-size: 0.8rem; background: ${u.trend === 'rising' ? '#fef2f2' : (u.trend === 'falling' ? '#f0fdf4' : '#f5f3ff')}; padding: 4px 10px; border-radius: 2rem;">
+                 <i data-lucide="${u.trend === 'rising' ? 'trending-up' : (u.trend === 'falling' ? 'trending-down' : 'minus')}" style="width: 14px;"></i>
+                 ${u.trend.toUpperCase()}
+              </div>
+           </div>
+        </div>
+      `).join('');
+
+      const logs = [
+        { time: '17:02', msg: 'AI detected bottleneck in ICU discharge pipeline. Rerouting housekeeping.', type: 'alert' },
+        { time: '16:48', msg: 'Rerouted 2 Radiology specialists to Emergency Ward to handle surge.', type: 'action' },
+        { time: '16:35', msg: 'Optimized triage throughput in OPD Clinic A. Efficiency +14%.', type: 'success' },
+        { time: '16:20', msg: 'Detected predictive surge in ER (+18% in 1.5h). Preparing Ward B.', type: 'prediction' },
+        { time: '16:05', msg: 'Compliance audit: OT utilization is at 92% peak efficiency.', type: 'info' },
+        { time: '15:50', msg: 'Pharmacy refill request auto-generated for Pediatric Wing.', type: 'info' }
+      ];
+
+      feed.innerHTML = logs.map(l => `
+        <div style="display: flex; gap: 1.25rem; margin-bottom: 1.5rem; align-items: flex-start; padding: 0.5rem; border-radius: 1rem; transition: all 0.2s;" onmouseover="this.style.background='white'">
+           <div style="font-size: 0.8rem; font-weight: 800; color: var(--gray-400); margin-top: 3px; min-width: 45px;">${l.time}</div>
+           <div style="font-size: 0.95rem; color: var(--gray-700); font-weight: 600; line-height: 1.4;">${l.msg}</div>
+        </div>
+      `).join('');
+
+      safeCreateIcons();
+    }
+
+    function logout() { localStorage.clear(); window.location.href = 'login.html'; }
+  </script>
+</body>
+</html>

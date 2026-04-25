@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SHMS - Smart Hospital Management System</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <style>
+    :root {
+      --glass: rgba(255, 255, 255, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.4);
+      --glass-blur: blur(12px);
+    }
+
+    body {
+      background: radial-gradient(circle at top right, #f0f7ff, #ffffff),
+                  radial-gradient(circle at bottom left, #f5f3ff, #ffffff);
+      background-attachment: fixed;
+    }
+
+    /* Navbar Premium */
+    .navbar {
+      position: sticky;
+      top: 1rem;
+      z-index: 1000;
+      margin: 0 auto;
+      width: min(1140px, calc(100% - 2rem));
+      background: var(--glass);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      padding: 0.75rem 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .navbar-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 1.5rem;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+
+    .navbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .navbar-nav a {
+      font-weight: 500;
+      font-size: 0.9375rem;
+      color: var(--gray-600);
+      position: relative;
+    }
+
+    .navbar-nav a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--primary);
+      transition: width 0.3s ease;
+    }
+
+    .navbar-nav a:hover {
+      color: var(--primary);
+    }
+
+    .navbar-nav a:hover::after {
+      width: 100%;
+    }
+
+    /* Hero Section Overhaul */
+    .hero {
+      padding: 8rem 0 4rem;
+      overflow: hidden;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      align-items: center;
+      gap: 4rem;
+    }
+
+    .hero-content {
+      max-width: 600px;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(37, 99, 235, 0.1);
+    }
+
+    .hero-title {
+      font-size: clamp(2.5rem, 6vw, 4rem);
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      letter-spacing: -1px;
+    }
+
+    .hero-title span {
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-desc {
+      font-size: 1.125rem;
+      color: var(--gray-600);
+      margin-bottom: 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-image-container {
+      position: relative;
+    }
+
+    .hero-image {
+      width: 100%;
+      border-radius: 2rem;
+      box-shadow: var(--shadow-xl);
+      border: 8px solid var(--white);
+    }
+
+    .hero-floating-card {
+      position: absolute;
+      background: var(--glass);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      padding: 1.25rem;
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      z-index: 10;
+    }
+
+    .floating-1 { top: -2rem; right: -2rem; animation: float 5s ease-in-out infinite; }
+    .floating-2 { bottom: -2rem; left: -2rem; animation: float 6s ease-in-out infinite reverse; }
+
+    /* Features Grid */
+    .features { padding: 6rem 0; }
+    
+    .feature-card {
+      text-align: left;
+      padding: 2.5rem;
+    }
+
+    .feature-icon {
+      width: 3.5rem;
+      height: 3.5rem;
+      background: var(--primary-light);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Doctor Section */
+    .doctors-section {
+      background: var(--gray-900);
+      color: var(--white);
+      padding: 6rem 0;
+      border-radius: 4rem;
+      margin: 2rem;
+    }
+
+    .doctors-section h2 { color: var(--white); }
+    .doctors-section p { color: var(--gray-400); }
+
+    .doctor-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 2rem;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .doctor-card:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-10px);
+      border-color: var(--primary);
+    }
+
+    .doctor-img {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+    }
+
+    .doctor-info {
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .doctor-info h3 {
+      color: #ffffff;
+      font-size: 1.25rem;
+      margin-bottom: 0.25rem;
+      font-weight: 700;
+    }
+
+    .doctor-info p {
+      color: #60a5fa !important;
+      font-weight: 600;
+    }
+
+    .doctor-tag {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: rgba(37, 99, 235, 0.2);
+      color: #60a5fa;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+    }
+
+    /* Ticker */
+    .ticker-wrap {
+      background: var(--primary);
+      color: white;
+      padding: 10px 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .ticker {
+      display: inline-block;
+      animation: ticker 40s linear infinite;
+    }
+
+    .ticker span {
+      margin-right: 50px;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+
+    @keyframes ticker {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* Footer */
+    .footer {
+      padding: 4rem 0 2rem;
+      background: var(--white);
+      border-top: 1px solid var(--gray-100);
+    }
+
+    @media (max-width: 992px) {
+      .hero-grid { grid-template-columns: 1fr; text-align: center; }
+      .hero-content { margin: 0 auto; }
+      .navbar-nav { display: none; }
+      .hero-image-container { margin-top: 4rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Live Pulse Ticker -->
+  <div class="ticker-wrap">
+    <div class="ticker">
+      <span>⚡ LIVE HOSPITAL PULSE: 98% Bed Occupancy</span>
+      <span>🏥 AI TRIAGE: Active & Monitoring Vitals</span>
+      <span>👨‍⚕️ STAFF: 24 Specialized Doctors Online</span>
+      <span>🚑 EMERGENCY: 2 Ambulances In-Transit</span>
+      <!-- Double for seamless loop -->
+      <span>⚡ LIVE HOSPITAL PULSE: 98% Bed Occupancy</span>
+      <span>🏥 AI TRIAGE: Active & Monitoring Vitals</span>
+      <span>👨‍⚕️ STAFF: 24 Specialized Doctors Online</span>
+      <span>🚑 EMERGENCY: 2 Ambulances In-Transit</span>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <div class="navbar-container">
+      <a href="#home" class="brand">
+        <i data-lucide="heart-pulse"></i>
+        <span>SHMS</span>
+      </a>
+      <ul class="navbar-nav">
+        <li><a href="#home">Home</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#doctors">Doctors</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+      <div style="display: flex; gap: 1rem;">
+        <a href="login.html" class="btn btn-secondary">Staff Login</a>
+        <a href="appointment.html" class="btn btn-primary">Book Now</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="hero" id="home">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-tag">
+          <i data-lucide="sparkles" size="16"></i>
+          Authentic Indian Healthcare Ecosystem
+        </div>
+        <h1 class="hero-title">
+          Smart care for a <span>healthier India.</span>
+        </h1>
+        <p class="hero-desc">
+          SHMS integrates AI-powered diagnostics with seamless hospital management, specifically tailored for the dynamic needs of modern medical institutions.
+        </p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <a href="appointment.html" class="btn btn-primary btn-lg" style="padding: 1rem 2.5rem;">
+            Book Appointment <i data-lucide="calendar"></i>
+          </a>
+          <a href="#about" class="btn btn-secondary btn-lg" style="padding: 1rem 2.5rem;">
+            Learn More
+          </a>
+        </div>
+        
+        <div style="margin-top: 3rem; display: flex; gap: 2rem; align-items: center;">
+          <div>
+            <h4 style="font-size: 1.5rem;">15k+</h4>
+            <p class="text-muted">Patients Served</p>
+          </div>
+          <div style="width: 1px; height: 40px; background: var(--gray-200);"></div>
+          <div>
+            <h4 style="font-size: 1.5rem;">99%</h4>
+            <p class="text-muted">Satisfaction Rate</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="hero-image-container">
+        <img src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80" alt="Hospital" class="hero-image">
+        
+        <div class="hero-floating-card floating-1">
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="background: var(--success); width: 10px; height: 10px; border-radius: 50%;"></div>
+            <span style="font-weight: 700; font-size: 0.875rem;">AI Triage Active</span>
+          </div>
+          <p style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">Prioritizing critical cases...</p>
+        </div>
+
+        <div class="hero-floating-card floating-2">
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <i data-lucide="activity" class="text-primary"></i>
+            <span style="font-weight: 700; font-size: 0.875rem;">Real-time Monitoring</span>
+          </div>
+          <div style="margin-top: 0.5rem; display: flex; gap: 0.25rem;">
+            <div style="height: 20px; width: 4px; background: var(--primary); border-radius: 2px;"></div>
+            <div style="height: 15px; width: 4px; background: var(--primary); border-radius: 2px;"></div>
+            <div style="height: 25px; width: 4px; background: var(--primary); border-radius: 2px;"></div>
+            <div style="height: 18px; width: 4px; background: var(--primary); border-radius: 2px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="about">
+    <div class="container">
+      <div class="text-center mb-8">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Why choose SHMS?</h2>
+        <p class="text-muted" style="max-width: 600px; margin: 0 auto;">We bridge the gap between traditional care and modern technology for faster medical services.</p>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+        <div class="card feature-card">
+          <div class="feature-icon"><i data-lucide="zap"></i></div>
+          <h3 class="mb-4">Fast Triage</h3>
+          <p class="text-muted">AI-assisted emergency prioritization for critical care units based on vitals.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon"><i data-lucide="shield-check"></i></div>
+          <h3 class="mb-4">Secure EMR</h3>
+          <p class="text-muted">Digital health records encrypted and accessible nationwide for medical history.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon"><i data-lucide="users"></i></div>
+          <h3 class="mb-4">Staff Efficiency</h3>
+          <p class="text-muted">Optimized doctor-patient allocation using real-time institution load balancing.</p>
+        </div>
+        <div class="card feature-card">
+          <div class="feature-icon"><i data-lucide="activity"></i></div>
+          <h3 class="mb-4">Live Monitoring</h3>
+          <p class="text-muted">Continuous vitals tracking with automated nurse alerting for quick response.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="doctors-section" id="doctors">
+    <div class="container">
+      <div class="text-center mb-8">
+        <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Meet Our Specialists</h2>
+        <p style="max-width: 600px; margin: 0 auto;">Dedicated professionals providing world-class healthcare services.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;" id="doctors-list">
+        <!-- Static Demo Doctors -->
+        <div class="doctor-card">
+          <img src="images/dr_rajiv_mehta_portrait_1776780887785.png" alt="Doctor" class="doctor-img">
+          <div class="doctor-info">
+            <h3>Dr. Rajiv Mehta</h3>
+            <p class="text-primary">Cardiologist</p>
+            <span class="doctor-tag">15+ years exp</span>
+          </div>
+        </div>
+        <div class="doctor-card">
+          <img src="images/dr_priya_nair_portrait_1776780921027.png" alt="Doctor" class="doctor-img">
+          <div class="doctor-info">
+            <h3>Dr. Priya Nair</h3>
+            <p class="text-primary">Gynecologist</p>
+            <span class="doctor-tag">12+ years exp</span>
+          </div>
+        </div>
+        <div class="doctor-card">
+          <img src="images/dr_arjun_sharma_portrait_1776780982203.png" alt="Doctor" class="doctor-img">
+          <div class="doctor-info">
+            <h3>Dr. Arjun Sharma</h3>
+            <p class="text-primary">Pediatrician</p>
+            <span class="doctor-tag">10+ years exp</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="dynamic-doctors-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem;">
+        <!-- Dynamically loaded -->
+      </div>
+    </div>
+  </section>
+
+  <section class="container" id="contact" style="padding: 6rem 0;">
+    <div class="card" style="padding: 0; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr;">
+      <div style="padding: 4rem; background: var(--gray-50);">
+        <h2 class="mb-4">Get in Touch</h2>
+        <p class="text-muted mb-8">Have questions? Our team is here to help you 24/7.</p>
+        
+        <div style="display: grid; gap: 2rem;">
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="feature-icon" style="margin-bottom: 0; width: 3rem; height: 3rem;"><i data-lucide="phone"></i></div>
+            <div>
+              <p class="text-muted" style="font-size: 0.8rem;">Support</p>
+              <p style="font-weight: 700;">+91 700 123 4567</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="feature-icon" style="margin-bottom: 0; width: 3rem; height: 3rem;"><i data-lucide="mail"></i></div>
+            <div>
+              <p class="text-muted" style="font-size: 0.8rem;">Email</p>
+              <p style="font-weight: 700;">help@shms-india.com</p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="feature-icon" style="margin-bottom: 0; width: 3rem; height: 3rem;"><i data-lucide="map-pin"></i></div>
+            <div>
+              <p class="text-muted" style="font-size: 0.8rem;">Location</p>
+              <p style="font-weight: 700;">Maharashtra, India</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="padding: 4rem;">
+        <form onsubmit="event.preventDefault(); showToast('success', 'Sent', 'Message sent to our team!');">
+          <div style="display: grid; gap: 1.5rem;">
+            <div>
+              <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Full Name</label>
+              <input type="text" placeholder="Your name" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--gray-200); margin-top: 0.5rem;" required>
+            </div>
+            <div>
+              <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Email Address</label>
+              <input type="email" placeholder="email@example.com" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--gray-200); margin-top: 0.5rem;" required>
+            </div>
+            <div>
+              <label class="text-muted" style="font-size: 0.875rem; font-weight: 600;">Your Message</label>
+              <textarea placeholder="How can we help?" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--gray-200); margin-top: 0.5rem; min-height: 120px;" required></textarea>
+            </div>
+            <button class="btn btn-primary btn-lg w-full">Send Message</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2rem;">
+        <div class="brand">
+          <i data-lucide="heart-pulse"></i>
+          <span>SHMS</span>
+        </div>
+        <p class="text-muted">© 2026 Smart Hospital Management System. Made for India.</p>
+        <div style="display: flex; gap: 1.5rem;">
+          <a href="#" class="text-muted hover:text-primary"><i data-lucide="twitter"></i></a>
+          <a href="#" class="text-muted hover:text-primary"><i data-lucide="linkedin"></i></a>
+          <a href="#" class="text-muted hover:text-primary"><i data-lucide="instagram"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    async function loadDoctors() {
+      try {
+        const data = await SHMS_API.getDoctors();
+        const container = document.getElementById('dynamic-doctors-list');
+        if (!container) return;
+        
+        const maleImages = [
+          "images/dr_aditya_kulkarni_1776778049774.png",
+          "images/dr_rajesh_deshpande_1776778436462.png",
+          "images/dr_rajiv_mehta_portrait_1776780887785.png",
+          "images/dr_arjun_sharma_portrait_1776780982203.png"
+        ];
+
+        const femaleImages = [
+          "images/dr_sunita_sharma_1776778404999.png",
+          "images/dr_priya_nair_portrait_1776780921027.png"
+        ];
+
+        let mIdx = 0, fIdx = 0;
+
+        container.innerHTML = data.doctors.slice(0, 4).map(doc => {
+          const isFemale = doc.gender === 'Female';
+          const img = isFemale ? femaleImages[fIdx++ % femaleImages.length] : maleImages[mIdx++ % maleImages.length];
+          return `
+            <div class="doctor-card">
+              <img src="${img}" alt="${doc.name}" class="doctor-img">
+              <div class="doctor-info">
+                <h3>${doc.name}</h3>
+                <p class="text-primary">${doc.specialization}</p>
+                <span class="doctor-tag">Available Now</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error("Failed to load doctors", e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDoctors();
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
