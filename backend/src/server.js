@@ -14,11 +14,19 @@ const server = http.createServer(app);
 initSocket(server);
 
 async function start() {
+  // Try to connect to DB
   await connectDatabase();
   
+  const app = createApp();
+  const server = createServer(app);
+  
   // Ensure we have some data in production
-  console.log("Checking database health...");
-  await seedDemoData();
+  if (mongoose.connection.readyState === 1) {
+    console.log("Database connected. Ensuring seed data...");
+    await seedDemoData();
+  } else {
+    console.warn("WARNING: Server starting WITHOUT database connection. Some features will be limited.");
+  }
   
   registerBroadcaster(broadcastDashboardUpdate);
   startSimulation();
