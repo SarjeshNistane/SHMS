@@ -4,7 +4,7 @@ dotenv.config();
 
 // Support multiple allowed origins via comma-separated CLIENT_ORIGIN env var.
 // e.g. CLIENT_ORIGIN="https://shms.vercel.app,http://localhost:4000"
-const rawOrigins = process.env.CLIENT_ORIGIN || "https://shms-n6hbqoqcr-sarjeshnistanes-projects.vercel.app,http://localhost:4000,http://localhost:5173";
+const rawOrigins = process.env.CLIENT_ORIGIN || "https://shms-delta.vercel.app,https://shms-n6hbqoqcr-sarjeshnistanes-projects.vercel.app,http://localhost:4000,http://localhost:5173";
 export const allowedOrigins = rawOrigins.split(",").map((o) => o.trim());
 
 export const config = {

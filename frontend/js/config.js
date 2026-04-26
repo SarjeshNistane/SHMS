@@ -9,5 +9,5 @@
  * Leave as empty string ("") to auto-detect (localhost in dev, same-origin otherwise)
  */
 window.SHMS_CONFIG = {
-  apiUrl: "https://shms-29iy.onrender.com" // <-- Your live Render URL
+  apiUrl: "https://shms-29iy.onrender.com"
 };
