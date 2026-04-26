@@ -7,7 +7,8 @@ let io;
 export function initSocket(server) {
   io = new Server(server, {
     cors: {
-      origin: config.clientOrigin
+      origin: config.clientOrigin,
+      credentials: true
     }
   });
 

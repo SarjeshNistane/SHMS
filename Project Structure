@@ -1,0 +1,419 @@
+# SHMS — Deep Code Analysis
+
+## 🗂️ Project at a Glance
+
+```
+Hackathon/
+├── backend/          ← Node.js + Express + MongoDB API server
+├── frontend/         ← Vanilla HTML/CSS/JS multi-page app
+├── scripts/          ← PowerShell helpers to start/stop MongoDB
+├── package.json      ← Root orchestrator (runs both services)
+├── start-shms.ps1    ← One-click startup script
+└── local-run.bat     ← Windows batch launcher
+```
+
+**Tech Stack:** Node.js · Express · MongoDB (Mongoose) · Socket.IO · JWT · bcryptjs · Lucide Icons · Chart.js · Vanilla JS
+
+---
+
+## 🔵 LAYER 1 — Root / Orchestration
+
+### `package.json` (root)
+The **monorepo controller**. Delegates commands:
+- `npm run dev` → starts the backend server
+- `npm run mongo:local` → launches local MongoDB via PowerShell
+- `npm start` → runs `start-shms.ps1` which boots everything together
+
+### `start-shms.ps1` / `local-run.bat`
+Launch scripts that start MongoDB and the Node server together in one click.
+
+### `scripts/` (root-level)
+- **`start-local-mongo.ps1`** — Downloads and boots a portable MongoDB binary in `backend/.mongodb-bin/`
+- **`stop-local-mongo.ps1`** — Reads `backend/mongod.pid` and kills the process
+- **`mongo-status.ps1`** — Checks if MongoDB is running
+
+---
+
+## 🟢 LAYER 2 — Backend Entry Chain
+
+### `server.js` → `app.js` → routes
+
+```
+server.js
+  ├── createApp()           → builds Express app + mounts routes
+  ├── http.createServer()   → wraps app for Socket.IO
+  ├── initSocket()          → starts Socket.IO server
+  ├── connectDatabase()     → connects Mongoose to MongoDB
+  ├── seedDemoData()        → populates fresh demo records on startup
+  ├── registerBroadcaster() → links Socket.IO to service layer
+  └── startSimulation()     → starts background simulation ticker
+```
+
+**`config.js`** — Environment configuration:
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `port` | 4000 | Server port |
+| `mongoUri` | local MongoDB | Database URL |
+| `averageTreatmentTime` | 15 min | ETA estimates |
+| `aiTimeoutMs` | 500 ms | AI engine max time |
+| `deviceDedupWindowMs` | 5000 ms | Duplicate trigger prevention |
+
+**`db.js`** — Calls `mongoose.connect()` with `strictQuery: true`.
+
+**`constants.js`** — Shared enums used everywhere:
+- `emergencyStatuses`: QUEUED → TRIGGERED → DISPATCHED → WAITING/PARTIAL/COMPLETED
+- `priorities`: HIGH=3, MEDIUM=2, LOW=1
+- `timelineTypes`: Labels for audit trail entries
+- `systemIndicators`: Dashboard health signals
+
+---
+
+## 🔴 LAYER 3 — Routes (API Endpoints)
+
+### `routes/auth.js` → `POST /auth/login`
+1. Looks up user by name + role in the Doctor collection
+2. Compares password against bcrypt hash
+3. Signs a JWT (8-hour expiry) with `id`, `role`, `name`
+4. Returns token + user profile
+
+Admins are stored in the same Doctor collection with `role: "admin"`.
+
+### `routes/emergencies.js`
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/trigger` | Creates emergency, runs AI, assigns resources |
+| POST | `/demo/complete` | Forces a complete high-confidence emergency |
+| POST | `/demo/reset` | Wipes all emergencies, restores fresh seed data |
+| GET | `/active` | Returns all emergencies + system health indicators |
+| GET | `/patients` | Lists all registered patients |
+| POST | `/:id/attend` | Doctor marks they are attending a case |
+| POST | `/:id/complete` | Doctor marks treatment complete, releases resources |
+
+### `routes/appointments.js`
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/` | ✅ JWT | Full list for admin/doctor dashboards |
+| GET | `/public` | ❌ Open | List with doctor names for live queue display |
+| POST | `/` | ❌ Open | Book appointment — validates doctor, prevents double-booking |
+
+### `routes/resources.js`
+- `GET /resources/beds` — All beds sorted by code
+- `GET /resources/doctors` — All doctors sorted by name
+
+### `routes/ai.js` → `POST /ai/evaluate`
+Directly calls AI engine with sensor data. Falls back to `fallbackDecision()` on timeout.
+
+---
+
+## 🟡 LAYER 4 — Middleware
+
+### `authMiddleware.js` — JWT Guard
+Reads `Authorization: Bearer <token>`, verifies with `jsonwebtoken`, attaches `req.user` to request. Returns 401 (no token) or 403 (invalid/expired).
+
+---
+
+## 🟠 LAYER 5 — Services (The Brain)
+
+### `aiEngine.js` — AI Decision Engine ⭐
+
+A **rule-based weighted scoring system** that simulates medical triage.
+
+**Input:** 4 sensor signals (0–1 scale):
+- `motion` — Abnormal movement
+- `impact` — Physical impact detected
+- `inactivity` — Dangerous stillness
+- `locationRisk` — High-risk location (road, stairwell)
+
+**Scoring Formula:**
+```
+confidence = motion×0.3 + impact×0.3 + inactivity×0.2 + locationRisk×0.2
+
+dynamicThreshold = clamp(0.55 + historicalFactor×0.1 + locationRisk×0.05)
+
+anomalyFlag = confidence ≥ threshold AND (impact > 0.75 OR inactivity > 0.75)
+
+priority: HIGH if confidence ≥ 0.8 or anomalyFlag
+          MEDIUM if confidence ≥ 0.55
+          LOW otherwise
+
+action: DISPATCH_AMBULANCE if confidence ≥ threshold
+        OBSERVE_AND_ALERT otherwise
+```
+
+**Timeout Protection:** Runs in `Promise.race()` against `aiTimeoutMs` (500ms). On timeout, `fallbackDecision()` takes over — always dispatches, sets `usedFallback: true`. This is the system's **resilience mechanism**.
+
+---
+
+### `emergencyService.js` — Pipeline Orchestrator ⭐ (423 lines)
+
+**Key state:**
+- `queue[]` — In-memory priority queue
+- `sequenceCounter` — FIFO ordering within same priority
+- `recentDeviceWindows` Map — Duplicate trigger detection (5s window)
+- `workerRunning` — Mutex flag (prevents concurrent processing)
+
+**Complete Emergency Lifecycle:**
+```
+POST /emergencies/trigger
+  ↓
+createEmergencyTrigger()
+  ├── Dedup check (same device within 5s?)
+  ├── Create Emergency doc in MongoDB (status: QUEUED)
+  ├── Push to in-memory queue + sort by priority/sequence
+  └── Fire-and-forget: runWorker()
+
+runWorker() [sequential — one job at a time]
+  ↓
+processEmergencyJob()
+  ├── 1. status → TRIGGERED, log timeline entry
+  ├── 2. evaluateEmergency() [AI Engine]
+  │      └── On timeout → fallbackDecision()
+  ├── 3. Update priority from AI output, log AI_DECISION
+  ├── 4. dispatchAmbulance() → status: DISPATCHED
+  ├── 5. allocateBed()
+  │      ├── No bed → status: WAITING, exit early
+  │      └── Bed found → assign, continue
+  ├── 6. allocateDoctor()
+  │      ├── No doctor → status: WAITING, exit early
+  │      └── Doctor found → assign
+  └── 7. status: COMPLETED, log final timeline entry
+```
+
+Every step → MongoDB update + `notifyDashboardUpdate()` → Socket.IO broadcast to all browsers.
+
+---
+
+### `resourceService.js` — Smart Allocation Engine
+
+**`allocateBed(emergency)`:**
+- Score = `priorityWeight × 5 + aiConfidence × 3`
+- Picks highest score, atomic update (prevents race conditions)
+
+**`allocateDoctor(emergency)`:**
+- Score = `availability - currentLoad×1.5 + specializationBonus`
+- Emergency Medicine specialist or HIGH priority → +5 bonus
+- Atomically assigns and increments `currentLoad`
+
+**`estimateEta(priority)`:**
+- Counts busy doctors, returns `averageTreatmentTime × queuePosition` minutes
+
+**`releaseResources(emergencyId)`:**
+- Resets bed + doctor availability in parallel on treatment completion
+
+---
+
+### `seedService.js` — Demo Data Factory
+
+Runs at every server startup. Creates:
+- **15 Beds**: General (A1–A5), ICU (B1–B3), Pediatric (C1–C3), Trauma (D1–D2), Emergency (E1–E2)
+- **10 Doctors** with randomized order, password: `"password123"` (bcrypt hashed)
+- **1 Admin** (`Sanjay Gupta`, password: `"admin123"`)
+- **15 Patients** with varied ages/risk levels
+
+`resetDemoData()` — Called by `POST /demo/reset`. Clears all emergencies, logs, events. Resets beds/doctors to full availability.
+
+---
+
+### `simulationService.js` — Background Activity Generator
+
+`setInterval` every 10 seconds. With 40% probability, logs a random system event like:
+- "AI re-prioritizing queue based on severity..."
+- "System syncing with National Health ID (ABHA)..."
+
+Keeps the Neural AI Log feed on the admin dashboard alive even without real emergencies.
+
+---
+
+### `realtimeService.js` — Decoupling Bridge (11 lines)
+
+Prevents circular imports between `socket.js` and services:
+```js
+// server.js registers:
+registerBroadcaster(broadcastDashboardUpdate);
+
+// Any service calls:
+await notifyDashboardUpdate();  // → calls Socket.IO emit
+```
+
+### `logService.js` — Audit Writer
+- `logAction(emergencyId, type, status, details)` → `ActionLog` collection
+- `logSystemEvent(type, message, payload)` → `SystemEvent` collection
+
+---
+
+## 🔵 LAYER 6 — Database Models
+
+### `Emergency.js` — Core Document
+
+```
+Emergency {
+  deviceId        ← IoT device that triggered it
+  patientId       ← ref → Patient
+  sensorSnapshot  ← raw sensor readings
+  status          ← current pipeline stage
+  priority        ← LOW / MEDIUM / HIGH
+  queueSequence   ← FIFO ordering number
+  etaMinutes      ← estimated wait when no resources
+  aiDecision {    ← full AI output
+    action, confidence, priority, reasoning, anomalyFlag, usedFallback
+  }
+  assignedBed     ← ref → Bed
+  assignedDoctor  ← ref → Doctor
+  timeline[]      ← timestamped audit trail of every step
+}
+```
+
+The `timeline[]` is a complete, embedded audit log — every state change, AI decision, and resource assignment recorded chronologically.
+
+### `Doctor.js`
+Doubles as the **User** model. Stores both doctors and admins. Fields: `name`, `password` (bcrypt), `role`, `specialization`, `availability` (score), `currentLoad`, `available` (bool), `currentEmergencyId`.
+
+### `Bed.js`
+`code`, `ward`, `available` (bool), `currentEmergencyId`. Toggled by the allocation/release logic.
+
+### `Appointment.js`
+`patientName`, `patientAge`, `doctorId`, `time`, `department`, `reason`, `status`.
+
+### `Patient.js`
+`name`, `age`, `bloodGroup`, `riskLevel` (1–3), `primaryCondition`.
+
+### `ActionLog.js` + `SystemEvent.js`
+Audit log collections used by the System Audit dashboard section.
+
+---
+
+## 🟣 LAYER 7 — Frontend
+
+### Page Architecture
+
+| Page | Audience | Key Feature |
+|------|---------|------------|
+| `index.html` | Public | Landing page, loads real doctors from API |
+| `login.html` | Staff | Tab-based Doctor/Admin auth with JWT |
+| `admin.html` | Admin | Full command center SPA (~2000 lines) |
+| `doctor.html` | Doctor | Clinical workspace SPA (~1500 lines) |
+| `appointment.html` | Patients | Public booking form |
+
+---
+
+### `js/api.js` — Frontend API Client
+
+Global `window.SHMS_API` object with typed methods for every backend endpoint. Uses `localStorage` JWT for `Authorization: Bearer` headers on protected calls.
+
+`window.setupRealtime(callback)` — Socket.IO client that fires `callback` on both initial snapshot and live updates.
+
+**Smart base URL**: Uses `window.location.origin` when served from Node, `localhost:4000` when opened as a file.
+
+---
+
+### `js/utils.js` — Shared UI Utilities
+
+- **`showToast(type, title, message)`** — Animated toast notifications (auto-dismiss 4s)
+- **`safeCreateIcons()`** — Safely initializes Lucide icons after dynamic HTML injection
+
+---
+
+### CSS Architecture
+
+| File | Responsibility |
+|------|---------------|
+| `styles.css` | Design tokens (colors, spacing, radii, shadows), base resets, utility classes, button variants |
+| `dashboard.css` | Two-column layout (sidebar + main), stat cards, queue list, data tables |
+| `components.css` | Badges, search boxes, bed grid items, toasts |
+| `animations.css` | Keyframes: fadeInUp, slideInLeft, float, pulse, spin; delay utility classes |
+
+---
+
+### `admin.html` — Admin Command Center
+
+SPA using CSS show/hide section toggling. Sidebar sections:
+
+| Section | What it does |
+|---------|-------------|
+| Overview | Live KPI stats (beds, emergencies), Neural AI Log feed, Performance chart, Capacity Heatmap |
+| Patient Registry | Searchable/filterable patient table from API |
+| Bed Allocation | Live bed grid by ward, occupancy bars, 24h forecast chart |
+| Medical Staff | Doctor grid with load indicators |
+| AI Capacity Map | Department heatmap (ICU, ER, OPD, Surgical OT, Labs, General Ward) |
+| **Emergency Hub** | **6 colored code buttons** — each calls `/emergencies/trigger` with matching sensor data |
+| System Audit | Real-time log entries from backend SystemEvents |
+
+Real-time: `setupRealtime()` → re-renders stats, queue, AI log on every socket update.
+
+---
+
+### `doctor.html` — Clinical Workspace
+
+SPA sidebar sections:
+
+| Section | What it does |
+|---------|-------------|
+| Workstation | Welcome banner, KPI stats, AI tips, queue preview, appointments |
+| Live Triage | Full emergency queue with Attend/Complete action buttons |
+| Telemedicine Hub | Virtual waiting room + Canvas waveform animation for active session |
+| Clinical EMRs | Split-pane patient list + detailed EMR viewer |
+| Emergency Panel | High-priority emergencies requiring immediate action |
+| Lab Center | Investigation worklist with AI early findings |
+| Smart Pharmacy | Drug inventory + e-Rx verification panel |
+| Shift Roster | Weekly rotation matrix auto-generated from doctor data |
+
+Attend/Complete buttons call the backend API and trigger resource release.
+
+---
+
+### `appointment.html` — Public Booking
+
+Fetches real doctors for dropdown. Checks existing appointments for slot availability. Posts to `POST /appointments`. Prevents double-booking via backend validation.
+
+---
+
+## 🔄 Data Flow Summary
+
+```
+EMERGENCY FLOW:
+Admin clicks "Code Blue"
+  → SHMS_API.triggerEmergency({deviceId, sensorSnapshot, priority: "HIGH"})
+  → POST /emergencies/trigger
+  → Pipeline: QUEUED → AI EVALUATION → DISPATCHED → BED ASSIGNED → DOCTOR ASSIGNED → COMPLETED
+  → Every step: Socket.IO broadcast → all browsers update live
+  → Doctor sees new case → clicks Attend → clicks Complete → resources released
+
+AUTH FLOW:
+Staff logs in → bcrypt compare → JWT issued → stored in localStorage
+  → Protected APIs send Authorization: Bearer header
+  → authMiddleware.js validates → req.user populated
+
+APPOINTMENT FLOW:
+Patient fills form → real doctor dropdown → POST /appointments
+  → Backend validates doctor exists + no slot conflict
+  → Doctor sees it in their Appointments panel
+```
+
+---
+
+## 📊 Key Architecture Decisions
+
+| Decision | Why |
+|----------|-----|
+| In-memory queue + sequential worker | Prevents race conditions — one emergency at a time |
+| `Promise.race()` for AI | Never hangs; fallback always dispatches |
+| Socket.IO push updates | No polling; every connected tab updates instantly |
+| Same Node process serves frontend | No separate web server needed for demo |
+| Doctors collection = Users | No separate auth table needed |
+| Seed on every startup | Guarantees clean, consistent demo state |
+| Timeline array on Emergency | Complete audit trail embedded in the document |
+| `deviceDedupWindowMs` | Prevents double-triggering from same IoT device |
+
+---
+
+## ⚠️ Known Limitations (Hackathon Context)
+
+- **No real IoT** — sensor data is simulated via the trigger API payload
+- **Lab, Telemedicine, Pharmacy** are UI mockups with static data
+- **Financial Analytics** charts use hardcoded numbers
+- **AI engine** is a weighted scoring formula, not a trained ML model
+- **JWT secret** has a hardcoded fallback (should be env-only in production)
+- **No HTTPS** — plain HTTP for local demo

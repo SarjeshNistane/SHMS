@@ -12,7 +12,8 @@ export function createApp() {
 
   app.use(
     cors({
-      origin: config.clientOrigin
+      origin: config.clientOrigin,
+      credentials: true
     })
   );
   app.use(express.json());
@@ -26,9 +27,6 @@ export function createApp() {
   app.use("/resources", resourceRouter);
   app.use("/auth", authRouter);
   app.use("/appointments", appointmentRouter);
-
-  // Serve static frontend
-  app.use(express.static("../frontend"));
 
   // Global error handler
   app.use((error, req, res, next) => {

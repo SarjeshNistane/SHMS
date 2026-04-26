@@ -1,7 +1,9 @@
-/**
- * SHMS_API - Centralized API handler for Smart Health Management System
- */
-const SHMS_API_BASE = window.location.protocol === 'file:' ? "http://localhost:4000" : window.location.origin;
+// API base URL is set by frontend/js/config.js
+// In production: points to the Render backend URL
+// In development: falls back to localhost:4000
+const SHMS_API_BASE = (window.SHMS_CONFIG && window.SHMS_CONFIG.apiUrl)
+  ? window.SHMS_CONFIG.apiUrl
+  : (window.location.protocol === 'file:' ? "http://localhost:4000" : window.location.origin);
 
 window.SHMS_API = {
   // Authentication
