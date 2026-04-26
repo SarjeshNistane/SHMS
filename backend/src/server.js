@@ -17,15 +17,12 @@ async function start() {
   // Try to connect to DB
   await connectDatabase();
   
-  const app = createApp();
-  const server = createServer(app);
-  
   // Ensure we have some data in production
   if (mongoose.connection.readyState === 1) {
     console.log("Database connected. Ensuring seed data...");
     await seedDemoData();
   } else {
-    console.warn("WARNING: Server starting WITHOUT database connection. Some features will be limited.");
+    console.warn("WARNING: Server starting WITHOUT database connection.");
   }
   
   registerBroadcaster(broadcastDashboardUpdate);
