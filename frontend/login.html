@@ -304,10 +304,18 @@
       const btn = e.submitter;
       const originalText = btn.innerHTML;
       btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Authenticating...';
+      
+      // Added: Handle Render's cold start
+      const wakeUpTimer = setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Waking up server (Render Free Tier)...';
+        if (window.lucide) lucide.createIcons();
+      }, 3000);
+
       if (window.lucide) lucide.createIcons();
 
       try {
         const response = await SHMS_API.login(role, name, pass);
+        clearTimeout(wakeUpTimer);
         
         if (response.success) {
           localStorage.setItem('jwt_token', response.token);

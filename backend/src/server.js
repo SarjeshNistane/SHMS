@@ -15,7 +15,11 @@ initSocket(server);
 
 async function start() {
   await connectDatabase();
+  
+  // Ensure we have some data in production
+  console.log("Checking database health...");
   await seedDemoData();
+  
   registerBroadcaster(broadcastDashboardUpdate);
   startSimulation();
 
