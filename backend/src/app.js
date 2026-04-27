@@ -10,13 +10,23 @@ import { appointmentRouter } from "./routes/appointments.js";
 export function createApp() {
   const app = express();
 
+  // Request Logging Middleware
+  app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url} from ${req.headers.origin}`);
+    next();
+  });
+
   app.use(
     cors({
-      origin: config.clientOrigin,
+      origin: "*", // Temporarily allow all for debugging
       credentials: true
     })
   );
   app.use(express.json());
+
+  app.get("/", (_req, res) => {
+    res.json({ success: true, message: "SHMS Backend API is Online" });
+  });
 
   app.get("/health", (_req, res) => {
     res.json({ success: true, status: "ok" });
