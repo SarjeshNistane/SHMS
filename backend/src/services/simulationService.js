@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Emergency } from "../models/Emergency.js";
 import { SystemEvent } from "../models/SystemEvent.js";
 import { logSystemEvent } from "./logService.js";
@@ -7,6 +8,9 @@ export function startSimulation() {
   
   // Update vitals periodically
   setInterval(async () => {
+    // Prevent simulation queries if DB is not yet ready
+    if (mongoose.connection.readyState !== 1) return;
+
     try {
       const activeEmergencies = await Emergency.find({ status: { $ne: 'COMPLETED' } });
       

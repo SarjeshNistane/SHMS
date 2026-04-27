@@ -38,7 +38,10 @@ const emergencySchema = new mongoose.Schema(
     assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor" },
     timeline: { type: [timelineEntrySchema], default: [] }
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    bufferCommands: true // Explicitly enable buffering for this model
+  }
 );
 
 export const Emergency = mongoose.model("Emergency", emergencySchema);

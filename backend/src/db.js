@@ -4,11 +4,11 @@ import { config } from "./config.js";
 export async function connectDatabase() {
   try {
     mongoose.set("strictQuery", true);
+    mongoose.set("bufferCommands", true); // Ensure queries buffer while connecting
     console.log("Connecting to MongoDB...");
     await mongoose.connect(config.mongoUri, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000,
-      bufferCommands: false, // Fail fast if not connected
     });
     console.log("MongoDB Connected Successfully");
   } catch (error) {
@@ -20,4 +20,3 @@ export async function connectDatabase() {
     // Don't rethrow, let the server start so we can see health status
   }
 }
-

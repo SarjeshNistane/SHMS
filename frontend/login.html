@@ -330,7 +330,8 @@
           }
         } else {
           shake();
-          alert("Login failed: " + response.message);
+          const detailMsg = response.details ? ` (${response.details})` : '';
+          alert("Login failed: " + response.message + detailMsg);
           btn.innerHTML = originalText;
         }
       } catch (error) {

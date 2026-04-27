@@ -20,13 +20,23 @@ async function start() {
   // Ensure we have some data in production
   if (mongoose.connection.readyState === 1) {
     console.log("Database connected. Ensuring seed data...");
-    await seedDemoData();
+    try {
+      await seedDemoData();
+      console.log("Seed data ensured.");
+    } catch (err) {
+      console.error("CRITICAL: Seeding failed!", err.message);
+    }
   } else {
     console.warn("WARNING: Server starting WITHOUT database connection.");
   }
   
   registerBroadcaster(broadcastDashboardUpdate);
-  startSimulation();
+  
+  if (mongoose.connection.readyState === 1) {
+    startSimulation();
+  } else {
+    console.warn("WARNING: Simulation engine NOT started due to missing DB connection.");
+  }
 
   server.listen(config.port, () => {
     console.log(`Server running on http://localhost:${config.port}`);

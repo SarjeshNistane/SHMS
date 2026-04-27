@@ -1,13 +1,15 @@
 /**
- * SHMS Frontend Configuration
- *
- * After deploying the backend to Render:
- *   1. Copy your Render service URL (e.g. https://shms-backend.onrender.com)
- *   2. Replace the placeholder below with that URL
- *   3. Commit and push — Vercel will auto-redeploy the frontend
- *
- * Leave as empty string ("") to auto-detect (localhost in dev, same-origin otherwise)
+ * Smart Health Management System - Frontend Configuration
+ * 
+ * Logic to automatically determine the API URL:
+ * 1. If running locally (localhost), use the local backend.
+ * 2. If running on the cloud (Vercel), use the Render production backend.
  */
+
 window.SHMS_CONFIG = {
-  apiUrl: "https://shms-29iy.onrender.com"
+  apiUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
+    ? "http://localhost:4000"
+    : "https://shms-29iy.onrender.com"
 };
+
+console.log("SHMS API Base configured as:", window.SHMS_CONFIG.apiUrl);
