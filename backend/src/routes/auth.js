@@ -18,27 +18,39 @@ authRouter.post("/login", async (req, res) => {
     }
 
     const { name, password, role } = req.body;
+    console.log(`[AUTH] Login attempt: Name="${name}", Role="${role}"`);
     
     if (!name || !password || !role) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    // Find user (Doctor or Admin) - Case-insensitive match
-    // We use a safe regex for exact match
-    const safeName = name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Clean up name and handle optional "Dr." prefix
+    const cleanName = name.trim().replace(/^dr\.?\s+/i, "");
+    
+    // Find user (Doctor or Admin)
+    // We match either the exact name OR the name with a "Dr. " prefix
     const user = await Doctor.findOne({ 
-      name: { $regex: new RegExp(`^${safeName}$`, "i") }, 
-      role: role 
+      $and: [
+        { role: role.toLowerCase() },
+        { 
+          $or: [
+            { name: { $regex: new RegExp(`^${cleanName}$`, "i") } },
+            { name: { $regex: new RegExp(`^Dr\\.?\\s+${cleanName}$`, "i") } }
+          ]
+        }
+      ]
     });
     
     if (!user) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      console.warn(`[AUTH] User not found for: "${name}" as ${role}`);
+      return res.status(401).json({ success: false, message: "Invalid credentials (user not found)" });
     }
 
     // Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      console.warn(`[AUTH] Password mismatch for: "${name}"`);
+      return res.status(401).json({ success: false, message: "Invalid credentials (password incorrect)" });
     }
 
     // Generate JWT
