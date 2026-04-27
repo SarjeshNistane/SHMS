@@ -27,7 +27,7 @@
 
 🌐 Frontend (The Face)
 
-| Page               | User Role |Functionality                          --------------------------------------------------------------------------
+| Page               | User Role |Functionality   
 | `index.html`       | Public    | Landing page — dynamically loads doctors from API                          |
 | `login.html`       | Staff     | Authentication UI — Doctor/Admin toggle with JWT                           |
 | `admin.html`       | Admin     | Full SPA dashboard — 8+ modules, real-time updates via Socket.IO           |
